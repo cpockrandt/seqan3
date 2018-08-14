@@ -44,6 +44,7 @@
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/transform.hpp>
 
+#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
 #include <seqan3/index/concept.hpp>
 #include <seqan3/index/fm_index_iterator.hpp>
 #include <seqan3/core/metafunction/range.hpp>
@@ -85,7 +86,7 @@ struct fm_index_default_traits
         10000000,
         sdsl::sa_order_sa_sampling<>,
         sdsl::isa_sampling<>,
-        sdsl::byte_alphabet
+        sdsl::plain_byte_alphabet
     >;
 };
 
@@ -238,9 +239,19 @@ public:
         // * choose between in-memory/external and construction algorithms
         // * sdsl construction currently only works for int_vector, std::string and char *, not ranges in general
         sdsl::int_vector<8> tmp_text(text.size());
+
+        // uint8_t largest_char = 0;
         for (auto it = text.begin(); it != text.end(); it++)
+        {
+            // largest_char = std::max(largest_char, static_cast<uint8_t>(to_rank(*it) + 1));
             tmp_text[text.end() - it - 1] = to_rank(*it) + 1; // reverse and increase rank by one
+        }
         sdsl::construct_im(m_index, tmp_text, 0);
+
+        // TODO: would be nice but doesn't work since it's private and the public member references are const
+        // m_index.m_C.resize(largest_char);
+        // m_index.m_C.shrink_to_fit();
+        // m_index.m_sigma = largest_char;
     }
 
     //!\overload

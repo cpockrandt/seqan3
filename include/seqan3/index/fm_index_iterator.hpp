@@ -40,6 +40,7 @@
 #pragma once
 
 #include <array>
+#include <type_traits>
 
 #include <sdsl/suffix_trees.hpp>
 
@@ -112,6 +113,52 @@ protected:
     size_type offset() const noexcept
     {
         return index->m_index.size() - depth() - 1; // since the string is reversed during construction
+    }
+
+    //!\brief Optimized backward search without alphabet mapping
+    template <typename csa_t>
+    bool backward_search(csa_t const & csa, size_type const l, size_type const r, sdsl_char_type const c,
+                         size_type & l_res, size_type & r_res) const noexcept
+    {
+        assert(l <= r && r < csa.size());
+
+        if constexpr(std::is_same_v<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+        {
+            size_type const c_begin = csa.C[c];
+            if (r + 1 - l == csa.size()) // [[unlikely]]
+            {
+                l_res = c_begin;
+                r_res = csa.C[c + 1] - 1;
+            }
+            else
+            {
+                l_res = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
+                r_res = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
+            }
+            assert(r_res + 1 - l_res >= 0);
+            return r_res >= l_res;
+        }
+        else
+        {
+            size_type const cc = csa.char2comp[c];
+            if (cc == 0 && c > 0) // [[unlikely]]
+                return false;
+
+            size_type const c_begin = csa.C[cc];
+            if (l == 0 && r + 1 == csa.size()) // [[unlikely]]
+            {
+                l_res = c_begin;
+                r_res = csa.C[cc + 1] - 1;
+                return true;
+            }
+            else
+            {
+                l_res = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
+                r_res = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
+                assert(r_res + 1 - l_res >= 0);
+                return r_res >= l_res;
+            }
+        }
     }
 
     //!\publicsection
@@ -194,7 +241,7 @@ public:
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
         size_type _lb, _rb;
         while (c < index->m_index.sigma &&
-               !sdsl::backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
+               !backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
@@ -236,7 +283,7 @@ public:
 
         sdsl_char_type c_char = to_rank(c) + 1;
 
-        if (sdsl::backward_search(index->m_index, node.lb, node.rb, c_char, _lb, _rb))
+        if (backward_search(index->m_index, node.lb, node.rb, c_char, _lb, _rb))
         {
             parent_lb = node.lb;
             parent_rb = node.rb;
@@ -286,7 +333,7 @@ public:
 
             _parent_lb = _lb;
             _parent_rb = _rb;
-            if (!sdsl::backward_search(index->m_index, _parent_lb, _parent_rb, c, _lb, _rb))
+            if (!backward_search(index->m_index, _parent_lb, _parent_rb, c, _lb, _rb))
                 return false;
         }
 
@@ -330,7 +377,7 @@ public:
         size_type _lb, _rb;
 
         while (c < index->m_index.sigma &&
-               !sdsl::backward_search(index->m_index, parent_lb, parent_rb, index->m_index.comp2char[c], _lb, _rb))
+               !backward_search(index->m_index, parent_lb, parent_rb, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
@@ -372,7 +419,7 @@ public:
         {
             // TODO: this will be implemented much more efficiently in the future (performed rank queries are almost the
             // same). Rank information for different characters are located in the same cache line.
-            if (sdsl::backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
+            if (backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
             {
                 result[i].parent_lb = node.lb;
                 result[i].parent_rb = node.rb;
