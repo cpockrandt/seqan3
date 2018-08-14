@@ -76,3 +76,4 @@
 #pragma once
 
 #include <seqan3/index/fm_index.hpp>
+#include <seqan3/index/bi_fm_index.hpp>

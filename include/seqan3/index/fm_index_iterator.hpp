@@ -109,6 +109,9 @@ protected:
     //!\brief Underlying index from the SDSL.
     node_type node;
 
+    template <typename _index_t>
+    friend class bi_fm_index_iterator;
+
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept
     {

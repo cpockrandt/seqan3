@@ -211,6 +211,73 @@ concept fm_index_iterator_concept = std::Semiregular<t> && requires (t it)
 
 
 
+
+template <typename t>
+concept bi_fm_index_traits_concept = requires (t v)
+{
+    requires fm_index_traits_concept<typename t::fm_index_traits>;
+    requires fm_index_traits_concept<typename t::rev_fm_index_traits>;
+
+    requires std::is_same_v<typename t::fm_index_traits::sdsl_index_type::size_type,
+                            typename t::rev_fm_index_traits::sdsl_index_type::size_type>;
+};
+
+
+
+template <typename t>
+concept bi_fm_index_concept = std::Semiregular<t> && requires (t v)
+{
+    typename t::text_type;
+    typename t::char_type;
+    typename t::size_type;
+    typename t::iterator_type;
+    typename t::fwd_iterator_type;
+    typename t::rev_iterator_type;
+
+    // NOTE: circular dependency
+    // requires bi_fm_index_iterator_concept<typename t::iterator_type>;
+
+    // (bool)t::is_bidirectional;
+
+    requires requires (t index, std::vector<dna4> const & text) { { t(text) } };
+    requires requires (t index, std::vector<dna4> const & text) { { index.construct(text) } -> void; };
+
+    { v.root() } -> typename t::iterator_type;
+    { v.fwd_root() } -> typename t::fwd_iterator_type;
+    { v.rev_root() } -> typename t::rev_iterator_type;
+
+    { v.size()  } -> typename t::size_type;
+    { v.empty() } -> bool;
+
+    { v.load(std::string{})  } -> bool;
+    { v.store(std::string{}) } -> bool;
+};
+
+template <typename t>
+concept bi_fm_index_iterator_concept = fm_index_iterator_concept<t> && requires (t it)
+{
+    requires bi_fm_index_concept<typename t::index_type>;
+
+    requires requires (typename t::index_type const & index) { { t(index) } };
+
+    { it.down_rev()                                                 } -> bool;
+    { it.down_rev(typename t::index_type::char_type{})              } -> bool;
+    { it.down_rev(std::vector<typename t::index_type::char_type>{}) } -> bool;
+    { it.right_rev()                                                } -> bool;
+
+    { it.children_rev() } -> std::array<t, alphabet_size_v<typename t::index_type::char_type>>;
+
+    // TODO: should we offer _rev() methods?
+    // { it.path_label()  } -> auto;
+    // { it.locate()      } -> std::vector<typename t::size_type>;
+    // { it.lazy_locate() } -> auto;
+};
+
+
+
+
+
+
 //!\}
 
 } // namespace seqan3
