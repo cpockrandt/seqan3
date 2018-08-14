@@ -37,6 +37,7 @@
 #include <range/v3/algorithm/equal.hpp>
 
 #include <seqan3/index/fm_index.hpp>
+#include <seqan3/index/bi_fm_index.hpp>
 #include <seqan3/alphabet/nucleotide/dna4.hpp>
 #include <seqan3/test/comparison.hpp>
 
@@ -63,13 +64,21 @@ struct fm_index_byte_alphabet_traits
     >;
 };
 
+struct bi_fm_index_byte_alphabet_traits
+{
+   using fm_index_traits = fm_index_byte_alphabet_traits;
+   using rev_fm_index_traits = fm_index_byte_alphabet_traits;
+};
+
 template <typename T>
 class fm_index_iterator_test : public ::testing::Test
 {};
 
 using fm_index_iterator_types = ::testing::Types<
         fm_index_iterator<fm_index<std::vector<dna4>, fm_index_default_traits>>,
-        fm_index_iterator<fm_index<std::vector<dna4>, fm_index_byte_alphabet_traits>>>;
+        fm_index_iterator<fm_index<std::vector<dna4>, fm_index_byte_alphabet_traits>>,
+        bi_fm_index_iterator<bi_fm_index<std::vector<dna4>, bi_fm_index_default_traits>>,
+        bi_fm_index_iterator<bi_fm_index<std::vector<dna4>, bi_fm_index_byte_alphabet_traits>>>;
 
 TYPED_TEST_CASE(fm_index_iterator_test, fm_index_iterator_types);
 
@@ -370,4 +379,6 @@ TYPED_TEST(fm_index_iterator_test, lazy_locate)
 TEST(fm_index, concepts)
 {
     EXPECT_TRUE(fm_index_iterator_concept<fm_index_iterator<fm_index<std::vector<dna4>>>>);
+    EXPECT_TRUE(fm_index_iterator_concept<bi_fm_index_iterator<bi_fm_index<std::vector<dna4>>>>);
+    EXPECT_TRUE(bi_fm_index_iterator_concept<bi_fm_index_iterator<bi_fm_index<std::vector<dna4>>>>);
 }

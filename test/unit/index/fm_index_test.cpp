@@ -48,7 +48,10 @@ template <typename T>
 class fm_index_test : public ::testing::Test
 {};
 
-using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>>;
+using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>,
+                                        bi_fm_index<std::vector<dna4>>,
+                                        bi_fm_index<std::vector<aa27>>,
+                                        bi_fm_index<std::vector<char>>>;
 
 TYPED_TEST_CASE(fm_index_test, fm_index_types);
 
@@ -132,4 +135,7 @@ TEST(fm_index_test, concepts)
 {
     EXPECT_TRUE(fm_index_concept<fm_index<std::vector<dna4>>>);
     EXPECT_TRUE(fm_index_traits_concept<fm_index_default_traits>);
+
+    EXPECT_TRUE(bi_fm_index_concept<bi_fm_index<std::vector<dna4>>>);
+    EXPECT_TRUE(bi_fm_index_traits_concept<bi_fm_index_default_traits>);
 }
