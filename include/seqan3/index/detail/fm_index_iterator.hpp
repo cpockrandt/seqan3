@@ -41,7 +41,6 @@
 
 #include <type_traits>
 
-#include <seqan3/index/concept.hpp>
 #include <seqan3/core/platform.hpp>
 
 namespace seqan3::detail
@@ -71,15 +70,15 @@ struct fm_index_iterator_node
     size_type lb;
     //!\brief Right suffix array bound.
     size_type rb;
-    //!\brief Depth of the node in the suffix tree, i.e. length of the searched sequence.
+    //!\brief Depth of the node in the suffix tree, i.e. length of the searched query.
     size_type depth;
-    //!\brief Label of the last edge moved down. Needed for right().
+    //!\brief Label of the last edge moved down. Needed for cycle_right().
     sdsl_char_type last_char;
 
     //!\brief Comparison of two iterator nodes.
     bool operator==(fm_index_iterator_node const & rhs) const
     {
-        // NOTE: last_char is implementation specific for right().
+        // NOTE: last_char is implementation specific for cycle_right().
         // lb, rb and depth already determine the node in the suffix tree.
         // Thus there is no need to compare last_char.
         return lb == rhs.lb && rb == rhs.rb && depth == rhs.depth;

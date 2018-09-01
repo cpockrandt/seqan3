@@ -44,17 +44,23 @@
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
 #include <seqan3/index/concept.hpp>
 #include <seqan3/index/fm_index_iterator.hpp>
+#include <seqan3/index/detail/fm_index_iterator.hpp>
+#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
 #include <seqan3/core/metafunction/range.hpp>
 
 namespace seqan3
 {
 
-// forward declaration
+//!\cond
+// forward declarations
+template <typename index_t>
+class fm_index_iterator;
+
 template <typename index_t>
 class bi_fm_index_iterator;
+//!\endcond
 
 /*!\addtogroup index
  * \{
@@ -65,15 +71,13 @@ class bi_fm_index_iterator;
  *
  * \details
  *
- * ### Space consumption
+ * ### Running time / Space consumption
  *
  * SAMPLING_RATE = 16
+ * SIGMA: alphabet_size<char_type> where char_type is the seqan3 alphabet type (e.g. dna4 has an alphabet size of 4)
+ * T_BACKWARD_SEARCH: O(log SIGMA)
  *
  * \todo Asymptotic space consumption:
- *
- * ### Running time
- *
- * T_BACKWARD_SEARCH: O(log sigma)
  *
  */
 struct fm_index_default_traits
@@ -109,41 +113,11 @@ struct fm_index_default_traits
  * Here is a short example on how to build an index and search a pattern using an iterator. Please note that there is a
  * very powerful search module with a high-level interface \todo seqan3::search that encapsulates the use of iterators.
  *
- * ```cpp
- * #include <vector>
- * #include <iostream>
- * #include <seqan3/index/all.hpp>
- *
- * using namespace seqan3;
- * using namespace seqan3::literal;
- *
- * int main(int argc, char ** argv)
- * {
- *     std::vector<dna4> genome{"ATCGATCGAAGGCTAGCTAGCTAAGGGA"_dna4};
- *     fm_index<std::vector<dna4>> index{text}; // build the index
- *
- *     auto it = index.root(); // create an iterator pointing to the root of a virtual suffix tree
- *     it.down("AAGG"_dna4); // search
- *     std::cout << "Number of hits: " << it.count() << '\n'; // outputs: 2
- *     std::cout << "Positions in the genome: ";
- *     for (auto const & pos : it.locate()); // outputs: 8, 22
- *         std::cout << pos << ' ';
- *     std::cout << '\n';
- *
- *     return 0;
- * }
- * ```
- *
- * Even though the FM index is originally a prefix tree and uses backward searches, it is implemented as a suffix tree.
- * There is no need to reverse the text to be indexed, the patterns to be searched or recompute positions.
+ * \snippet test/snippet/index/fm_index.cpp all
  *
  * Here is an example using a collection of strings (e.g. a genome with multiple chromosomes or a protein database):
  *
  * Coming soon. Stay tuned!
- *
- * There is also a history iterator, i.e. an iterator that stores its previous states on a stack such that going down
- * an edge can be undone. Please take a look at the documentation of seqan3::fm_index_history_iterator::up() since it
- * does not undo all operations.
  *
  * ### Choosing an index implementation
  *
@@ -186,8 +160,12 @@ public:
 
     template <typename bi_fm_index_t>
     friend class bi_fm_index_iterator;
-    friend class fm_index_iterator<fm_index<text_t, fm_index_traits>>;
-    friend class detail::fm_index_iterator_node<fm_index<text_t, fm_index_traits>>;
+
+    template <typename fm_index_t>
+    friend class fm_index_iterator;
+
+    template <typename fm_index_t>
+    friend class detail::fm_index_iterator_node;
 
     /*!\name Constructors and destructor
      * \{
@@ -225,7 +203,7 @@ public:
     fm_index(text_t const &&) = delete;
 
     /*!\brief Constructs the index given a range. The range cannot be an rvalue (i.e. a temporary object).
-     *        \todo Poorely implemented with regard to the memory peak due to not matching interfaces with the SDSL
+     *        \todo Poorely implemented with regard to the memory peak due to not matching interfaces with the SDSL.
      * \tparam text_t The type of range to construct from; must satisfy std::ranges::ForwardRange.
      * \param[in] text The text to construct from.
      *
@@ -311,8 +289,11 @@ public:
     //     return !(*this == rhs);
     // }
 
-    /*!\brief Returns an iterator on the index.
-     * \returns Returns a (unidirectional) iterator on the index pointing to the root node of the implicit suffix tree.
+    /*!\brief Returns a seqan3::fm_index_iterator on the index that can be used for searching.
+     *        \cond DEV
+     *            Iterator is pointing to the root node of the implicit suffix tree.
+     *        \endcond
+     * \returns Returns a (unidirectional) seqan3::fm_index_iterator on the index.
      *
      * ### Complexity
      *
@@ -322,7 +303,7 @@ public:
      *
      * No-throw guarantee.
      */
-    iterator_type root() const noexcept
+    iterator_type begin() const noexcept
     {
         return iterator_type(*this);
     }

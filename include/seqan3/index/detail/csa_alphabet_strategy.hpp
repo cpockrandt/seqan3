@@ -1,7 +1,6 @@
 #pragma once
 
 #include <sdsl/int_vector.hpp>
-#include <sdsl/sd_vector.hpp>
 #include <sdsl/rank_support.hpp>
 #include <sdsl/select_support.hpp>
 #include <sdsl/sdsl_concepts.hpp>
@@ -15,6 +14,7 @@ namespace sdsl {
     //!\brief Byte alphabet that does no mapping of char_type to comp_char_type and vice versa.
     //        This is recommended when the underlying text uses the entire alphabet and not just a small subset.
     class plain_byte_alphabet {
+        //!\cond
     public:
         class mapping_wrapper;
 
@@ -122,6 +122,7 @@ namespace sdsl {
             m_C.load(in);
             read_member(m_sigma, in);
         }
+        //!\endcond
     };
 
 }

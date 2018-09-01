@@ -50,7 +50,8 @@
 
 #include <seqan3/alphabet/all.hpp>
 #include <seqan3/index/detail/fm_index_iterator.hpp>
-#include <seqan3/index/concept.hpp>
+#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
+#include <seqan3/index/fm_index.hpp>
 #include <seqan3/core/metafunction/range.hpp>
 
 namespace seqan3
@@ -60,23 +61,23 @@ namespace seqan3
  * \{
  */
 
-// TODO: unify terminology (pattern, sequence)
-
-/*!\brief The undirectional FM index iterator.
+/*!\brief The SeqAn FM Index Iterator.
  * \ingroup fm_index
  * \implements seqan3::fm_index_iterator_concept
  * \tparam index_t The type of the underlying index; must satisfy seqan3::fm_index_concept.
  * \details
  *
- * The iterator's interface and behaviour is equivalent to a suffix tree with the space and time efficiency of the
- * underlying pure FM index. The implicit suffix tree is not compacted, i.e. going down an edge will increase the
- * searched sequence by only one character.
+ * The iterator's interface provides searching a string from left to right in the indexed text.
+ * All methods modifying the iterator (e.g. extending by a character with extend_right()) return a `bool` value whether
+ * the operation was successful or not. In case of an unsuccessful operation the iterator remains unmodified, i.e. an
+ * iterator can never be in an invalid state except default constructed iterators that are always invalid.
  *
- * The iterator traverses the implicit suffix tree beginning at the root node. All methods
- * modifying the iterator (e.g. going down an edge) return a `bool` value whether the operation was successful or not.
- * In case of an unsuccessful operation the iterator remains unmodified, i.e. an iterator can never be in an
- * invalid state except default constructed iterators that are always invalid. E.g., going down an edge while the
- * iterator is in a leaf node, will return `false` and will remain in that leaf node.
+ * \cond DEV
+ *     The behaviour is equivalent to a suffix tree with the space and time efficiency of the underlying pure FM index.
+ *     The iterator traverses the implicit suffix tree beginning at the root node.
+ *     The implicit suffix tree is not compacted, i.e. going down an edge using extend_right(char) will increase the
+ *     query by only one character.
+ * \endcond
  *
  * The asymptotic running times for using the iterator depend on the SDSL index configuration. To determine the exact
  * running times, you have to additionally look up the running times of the used traits (configuration).
@@ -101,13 +102,13 @@ protected:
     using sdsl_char_type = typename index_type::sdsl_char_type;
 
     //!\brief Type of the underlying FM index.
-    index_type const * index;
+    index_type const * m_index;
     //!\brief Left suffix array range of the parent node. Needed for right().
-    size_type parent_lb;
+    size_type m_parent_lb;
     //!\brief Right suffix array range of the parent node. Needed for right().
-    size_type parent_rb;
+    size_type m_parent_rb;
     //!\brief Underlying index from the SDSL.
-    node_type node;
+    node_type m_node;
 
     template <typename _index_t>
     friend class bi_fm_index_iterator;
@@ -115,7 +116,7 @@ protected:
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept
     {
-        return index->m_index.size() - depth() - 1; // since the string is reversed during construction
+        return m_index->m_index.size() - query_length() - 1; // since the string is reversed during construction
     }
 
     //!\brief Optimized backward search without alphabet mapping
@@ -180,7 +181,7 @@ public:
     fm_index_iterator(fm_index_iterator &&) noexcept = default;
     fm_index_iterator & operator=(fm_index_iterator &&) noexcept = default;
 
-    fm_index_iterator(index_t const & _index) noexcept : index(&_index), node({0, _index.m_index.size() - 1, 0, 0})
+    fm_index_iterator(index_t const & index) noexcept : m_index(&index), m_node({0, index.m_index.size() - 1, 0, 0})
     {}
     //\}
 
@@ -190,7 +191,7 @@ public:
      *
      * ### Complexity
      *
-     * Constant. (\todo: will change when comparing indices, not yet supported by SDSL)
+     * Constant.
      *
      * ### Exceptions
      *
@@ -198,11 +199,12 @@ public:
      */
     bool operator==(fm_index_iterator const & rhs) const noexcept
     {
-        assert(index != nullptr);
-        assert(node != rhs.node || (depth() == 0 || (parent_lb == rhs.parent_lb && parent_rb == rhs.parent_rb)));
+        assert(m_index != nullptr);
+        assert(m_node != rhs.m_node ||
+            (query_length() == 0 || (m_parent_lb == rhs.m_parent_lb && m_parent_rb == rhs.m_parent_rb)));
 
         // position in the implicit suffix tree is defined by the SA range and depth. No need to compare parent ranges
-        return node == rhs.node;
+        return m_node == rhs.m_node;
     }
 
     /*!\brief Compares two iterators.
@@ -211,7 +213,7 @@ public:
      *
      * ### Complexity
      *
-     * Constant. (\todo: will change when comparing indices, not yet supported by SDSL)
+     * Constant.
      *
      * ### Exceptions
      *
@@ -219,52 +221,56 @@ public:
      */
     bool operator!=(fm_index_iterator const & rhs) const noexcept
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
 
         return !(*this == rhs);
     }
 
-    /*!\brief Goes down the leftmost (lexicographically smallest) edge.
-     * \returns `true` if the iterator moved down the leftmost edge successfully
-     *          (i.e. it was not in a leaf node before).
+    /*!\brief Tries to extend the query by the smallest possible character to the right such that the query is found in
+     *        the text.
+     *        \cond DEV
+     *            Goes down the leftmost (i.e. lexicographically smallest) edge.
+     *        \endcond
+     * \returns `true` if the iterator could extend the query successfully.
      *
      * ### Complexity
      *
-     * O(sigma) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet until it finds the smallest character that
+     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet until it finds the smallest character that
      * is represented by an edge.
      *
      * ### Exceptions
      *
      * No-throw guarantee.
      */
-    bool down() noexcept
+    bool extend_right() noexcept
     {
-        assert(index != nullptr);
+        // TODO: specialize extend_right() and cycle_back() for EPR-dictionaries
+        // store all iterators at once in a private std::array of iterators
+        assert(m_index != nullptr);
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
         size_type _lb, _rb;
-        while (c < index->m_index.sigma &&
-               !backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
+        while (c < m_index->m_index.sigma &&
+               !backward_search(m_index->m_index, m_node.lb, m_node.rb, m_index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != index->m_index.sigma)
+        if (c != m_index->m_index.sigma)
         {
-            parent_lb = node.lb;
-            parent_rb = node.rb;
-            node = {_lb, _rb, node.depth + 1, c};
+            m_parent_lb = m_node.lb;
+            m_parent_rb = m_node.rb;
+            m_node = {_lb, _rb, m_node.depth + 1, c};
             return true;
         }
         return false;
     }
 
-    /*!\brief Goes down the edge labelled with `c`.
+    /*!\brief Tries to extend the query by the character `c` to the right.
      * \tparam char_t Type of the character needs to be convertible to the character type `char_type` of the indexed
      *                text.
-     * \param[in] c Character to extend the searched sequence with.
-     * \returns `true` if the iterator moved down the corresponding edge, `false` otherwise (i.e. the searched sequence
-     *          does not occur in the indexed text).
+     * \param[in] c Character to extend the query with to the right.
+     * \returns `true` if the iterator could extend the query successfully.
      *
      * ### Complexity
      *
@@ -278,55 +284,54 @@ public:
     //!\cond
         requires implicitly_convertible_to_concept<char_t, typename index_t::char_type>
     //!\endcond
-    bool down(char_t const c) noexcept
+    bool extend_right(char_t const c) noexcept
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
 
         size_type _lb, _rb;
 
         sdsl_char_type c_char = to_rank(c) + 1;
 
-        if (backward_search(index->m_index, node.lb, node.rb, c_char, _lb, _rb))
+        if (backward_search(m_index->m_index, m_node.lb, m_node.rb, c_char, _lb, _rb))
         {
-            parent_lb = node.lb;
-            parent_rb = node.rb;
-            node = {_lb, _rb, node.depth + 1, c_char};
+            m_parent_lb = m_node.lb;
+            m_parent_rb = m_node.rb;
+            m_node = {_lb, _rb, m_node.depth + 1, c_char};
             return true;
         }
         return false;
     }
 
-    /*!\brief Goes down multiple edges labeled with `pattern`.
-     * \tparam char_t Type of the character needs to be convertible to the character type `char_type` of the indexed
-     *                text.
-     * \param[in] pattern Sequence to extend the searched sequence with.
-     * \returns `true` if the iterator moved down *all* corresponding edges, `false` otherwise (i.e. the searched
-     *          sequence does not occur in the indexed text).
+    /*!\brief Tries to extend the query by `seq` to the right.
+     * \tparam query_t Type of the character needs to be convertible to the character type `char_type` of the indexed
+     *                 text.
+     * \param[in] seq Sequence to extend the query with to the right.
+     * \returns `true` if the iterator could extend the query successfully.
      *
-     * If going down multiple edges fails in the middle of the sequence, all previous computations are rewound to
-     * restore the iterator's state before calling this method.
+     * If extending fails in the middle of the sequence, all previous computations are rewound to restore the iterator's
+     * state before calling this method.
      *
      * ### Complexity
      *
-     * |pattern| * O(T_BACKWARD_SEARCH).
+     * |seq| * O(T_BACKWARD_SEARCH).
      *
      * ### Exceptions
      *
      * No-throw guarantee.
      */
-    template <std::ranges::ForwardRange pattern_t>
+    template <std::ranges::ForwardRange query_t>
     //!\cond
-        requires implicitly_convertible_to_concept<innermost_value_type_t<pattern_t>, typename index_t::char_type>
+        requires implicitly_convertible_to_concept<innermost_value_type_t<query_t>, typename index_t::char_type>
     //!\endcond
-    bool down(pattern_t && pattern) noexcept
+    bool extend_right(query_t && seq) noexcept
     {
-        auto first = pattern.cbegin();
-        auto last = pattern.cend();
+        auto first = seq.begin();
+        auto last = seq.end();
 
-        assert(index != nullptr && first != last); // range must not be empty!
+        assert(m_index != nullptr && first != last); // range must not be empty!
 
-        size_type _lb = node.lb, _rb = node.rb;
-        size_type _parent_lb = node.lb, _parent_rb = node.rb;
+        size_type _lb = m_node.lb, _rb = m_node.rb;
+        size_type _m_parent_lb = m_node.lb, _m_parent_rb = m_node.rb;
 
         sdsl_char_type c;
 
@@ -334,117 +339,70 @@ public:
         {
             c = to_rank(*it) + 1;
 
-            _parent_lb = _lb;
-            _parent_rb = _rb;
-            if (!backward_search(index->m_index, _parent_lb, _parent_rb, c, _lb, _rb))
+            _m_parent_lb = _lb;
+            _m_parent_rb = _rb;
+            if (!backward_search(m_index->m_index, _m_parent_lb, _m_parent_rb, c, _lb, _rb))
                 return false;
         }
 
-        parent_lb = _parent_lb;
-        parent_rb = _parent_rb;
-        node = {_lb, _rb, node.depth + last - first, c};
+        m_parent_lb = _m_parent_lb;
+        m_parent_rb = _m_parent_rb;
+        m_node = {_lb, _rb, last - first + m_node.depth, c};
         return true;
     }
 
-    /*!\brief Moves the iterator to the right sibling of the current suffix tree node. It would be equivalent to going
-     *        up an edge and going down that edge with the smallest character that is smaller than the previous searched
-     *        character. Calling right() on an iterator pointing to the root node is undefined behaviour!
-     * \returns `true` if the current suffix tree node has a right sibling and the iterator was moved there.
+    /*!\brief Tries to replace the rightmost character of the query by the next lexicographically larger character such
+     *        that the query is found in the text.
+     *        \cond DEV
+     *            Moves the iterator to the right sibling of the current suffix tree node. It would be equivalent to
+     *            going up an edge and going down that edge with the smallest character that is larger than the
+     *            previous searched character. Calling cycle_back() on an iterator pointing to the root node is
+     *            undefined behaviour!
+     *        \endcond
+     * \returns `true` if there exists a query in the text where the rightmost character of the query is
+     *          lexicographically larger than the current rightmost character of the query.
      *
      * Example:
      *
-     * ```cpp
-     * auto it = index.root(); // create an iterator pointing to the root of the implicit suffix tree.
-     * // it.right(); // WRONG! Undefined behaviour!
-     * it.down(dna4::A);
-     * it.right(); // search the sequence "C", "G" or "T" (the smallest of them that occurs in the text).
-     *             // If none occurrs, false is returned.
-     * it.down("AAC"_dna4); // search the sequence "AAC".
-     * it.right(); // search the sequence "AAG", if not existant "AAT". If not existant either, return false.
-     * ```
+     * \snippet test/snippet/index/fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
-     * O(sigma) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet starting from the last searched character
-     * (parent edge of the last traversed edge) until it finds the right sibling edge.
+     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet starting from the rightmost character
+     * until it finds the query with a larger rightmost character.
      *
      * ### Exceptions
      *
      * No-throw guarantee.
      */
-    bool right() noexcept
+    bool cycle_back() noexcept
     {
-        assert(index != nullptr && depth() > 0 && parent_lb <= parent_rb); // parent_lb > parent_rb --> invalid range
+        // m_parent_lb > m_parent_rb --> invalid range
+        assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
 
-        sdsl_char_type c = node.last_char + 1;
+        sdsl_char_type c = m_node.last_char + 1;
         size_type _lb, _rb;
 
-        while (c < index->m_index.sigma &&
-               !backward_search(index->m_index, parent_lb, parent_rb, index->m_index.comp2char[c], _lb, _rb))
+        while (c < m_index->m_index.sigma &&
+               !backward_search(m_index->m_index, m_parent_lb, m_parent_rb, m_index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != index->m_index.sigma)
+        if (c != m_index->m_index.sigma)
         {
-            node = {_lb, _rb, node.depth, c};
+            m_node = {_lb, _rb, m_node.depth, c};
             return true;
         }
         return false;
     }
 
-    /*!\brief Returns an array of iterators pointing to the child nodes of the current iterator. Does not modify the
-     *        current iterator.
-     * \returns Array of iterators of size `alphabet_size(char_type)`, i.e. one iterator for each character. If the
-     *          current node does not have an edge for each character, the remaining positions in the array will be
-     *          filled with iterators pointing to the root.
+    /*!\brief Outputs the rightmost character.
+     * \returns Rightmost character.
      *
-     * ### Complexity
+     * Example:
      *
-     * sigma * O(T_BACKWARD_SEARCH). The asymptotic running time is equal to enumerating all children using `down()` and
-     * `right()` but has a better cache performance. (\todo: to be verified)
-     *
-     * ### Exceptions
-     *
-     * No-throw guarantee.
-     */
-    std::array<fm_index_iterator, alphabet_size_v<typename index_type::char_type>> children() const noexcept
-    {
-        assert(index != nullptr);
-
-        std::array<fm_index_iterator, alphabet_size_v<typename index_type::char_type>> result;
-
-        sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        size_type _lb, _rb;
-
-        uint8_t i = 0;
-        while (c < index->m_index.sigma)
-        {
-            // TODO: this will be implemented much more efficiently in the future (performed rank queries are almost the
-            // same). Rank information for different characters are located in the same cache line.
-            if (backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
-            {
-                result[i].parent_lb = node.lb;
-                result[i].parent_rb = node.rb;
-                result[i].index = index;
-                result[i].node = {_lb, _rb, node.depth + 1, c};
-                ++i;
-            }
-            ++c;
-        }
-
-        // fill the rest with iterators pointing to root
-        while (i < index_type::char_type::value_size)
-        {
-            result[i++] = fm_index_iterator(*this->index);
-        }
-
-        return result;
-    }
-
-    /*!\brief Returns the depth of the iterator node in the implicit suffix tree, i.e. the length of the sequence
-     *        searched.
-     * \returns Length of searched sequence.
+     * \snippet test/snippet/index/fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -454,16 +412,21 @@ public:
      *
      * No-throw guarantee.
      */
-    size_type depth() const noexcept
+    typename index_t::char_type last_char() noexcept
     {
-        assert(index != nullptr);
-        assert(node.depth != 0 || (node.lb == 0 && node.rb == index->size() - 1)); // depth == 0 -> root node
+        // m_parent_lb > m_parent_rb --> invalid range
+        assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
 
-        return node.depth;
+        typename index_t::char_type c;
+        c.assign_rank(m_index->m_index.comp2char[m_node.last_char] - 1); // text is not allowed to contain ranks of 0
+        return c;
     }
 
-    /*!\brief Checks whether the iterator is at the root node.
-     * \returns `true` if the iterator is pointing to the root node, `false` otherwise.
+    /*!\brief Returns the length of the searched query.
+     *        \cond DEV
+     *            Returns the depth of the iterator node in the implicit suffix tree.
+     *        \endcond
+     * \returns Length of query.
      *
      * ### Complexity
      *
@@ -473,43 +436,46 @@ public:
      *
      * No-throw guarantee.
      */
-    bool is_root() const noexcept
+    size_type query_length() const noexcept
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
+        assert(m_node.depth != 0 || (m_node.lb == 0 && m_node.rb == m_index->size() - 1)); // depth == 0 -> root node
 
-        return depth() == 0;
+        return m_node.depth;
     }
 
-    /*!\brief Returns the searched sequence, i.e. a concatenation of all edges from the root node to the iterators
-     *        current node.
-     * \returns Searched sequence.
+    /*!\brief Returns the searched query.
+     *        \cond DEV
+     *            Returns the concatenation of all edges from the root node to the iterators current node.
+     *        \endcond
+     * \returns Searched query.
      *
      * ### Complexity
      *
-     * O(sampling_rate * T_BACKWARD_SEARCH) + |depth()|.
+     * O(SAMPLING_RATE * T_BACKWARD_SEARCH) + query_length().
      *
      * ### Exceptions
      *
      * No-throw guarantee.
      */
-    auto path_label() const noexcept
+    auto query() const noexcept
     {
-        assert(index != nullptr && index->text != nullptr);
+        assert(m_index != nullptr && m_index->text != nullptr);
 
-        size_type const pattern_begin = offset() - index->m_index[node.lb];
-        return *index->text | ranges::view::slice(pattern_begin, pattern_begin + depth());
+        size_type const query_begin = offset() - m_index->m_index[m_node.lb];
+        return *m_index->text | ranges::view::slice(query_begin, query_begin + query_length());
     }
 
-    //!\copydoc path_label()
+    //!\copydoc query()
     auto operator*() const noexcept
     {
-       assert(index != nullptr && index->text != nullptr);
+       assert(m_index != nullptr && m_index->text != nullptr);
 
-       return path_label();
+       return query();
     }
 
-    /*!\brief Counts the number of occurrences of the searched sequence in the text.
-     * \returns Number of occurrences of the searched sequence in the text.
+    /*!\brief Counts the number of occurrences of the searched query in the text.
+     * \returns Number of occurrences of the searched query in the text.
      *
      * ### Complexity
      *
@@ -521,12 +487,12 @@ public:
      */
     size_type count() const noexcept
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
 
-        return 1 + node.rb - node.lb;
+        return 1 + m_node.rb - m_node.lb;
     }
 
-    /*!\brief Locates the occurrences of the searched sequence in the text.
+    /*!\brief Locates the occurrences of the searched query in the text.
      * \returns Positions in the text.
      *
      * ### Complexity
@@ -539,18 +505,18 @@ public:
      */
     std::vector<size_type> locate() const
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
 
         std::vector<size_type> occ(count());
         for (size_type i = 0; i < occ.size(); ++i)
         {
-            occ[i] = offset() - index->m_index[node.lb + i];
+            occ[i] = offset() - m_index->m_index[m_node.lb + i];
         }
         return occ;
     }
 
-    /*!\brief Locates the occurrences of the searched sequence in the text on demand, i.e. a ranges::view is returned
-     *        and every position is located once it is accessed.
+    /*!\brief Locates the occurrences of the searched query in the text on demand, i.e. a ranges::view is returned and
+     *        every position is located once it is accessed.
      * \returns Positions in the text.
      *
      * ### Complexity
@@ -563,11 +529,11 @@ public:
      */
     auto lazy_locate() const
     {
-        assert(index != nullptr);
+        assert(m_index != nullptr);
 
         size_type const _offset = offset();
-        return ranges::view::iota(node.lb, node.lb + count())
-               | ranges::view::transform([*this, _offset] (auto sa_pos) { return _offset - index->m_index[sa_pos]; });
+        return ranges::view::iota(m_node.lb, m_node.lb + count())
+               | ranges::view::transform([*this, _offset] (auto sa_pos) { return _offset - m_index->m_index[sa_pos]; });
     }
 
 };

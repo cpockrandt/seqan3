@@ -89,10 +89,10 @@ TYPED_TEST(fm_index_iterator_test, ctr)
 
     // custom constructor
     TypeParam it0{fm};
-    EXPECT_EQ(it0.depth(), 0);
+    EXPECT_EQ(it0.query_length(), 0);
     EXPECT_EQ(it0.locate().size(), fm.size());
 
-    // default construction (does not set the iterator to the root node)
+    // default construction (does not initialize the iterator)
     TypeParam it1;
 
     // copy construction
@@ -112,219 +112,178 @@ TYPED_TEST(fm_index_iterator_test, ctr)
     EXPECT_EQ(it0, it5);
 }
 
-TYPED_TEST(fm_index_iterator_test, root_node)
+TYPED_TEST(fm_index_iterator_test, begin)
 {
     typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // root
+    // begin
     TypeParam it(fm);
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 1, 2, 3, 4, 5, 6}))); // sentinel position included
-    EXPECT_EQ(it.depth(), 0);
+    EXPECT_EQ(it.query_length(), 0);
     EXPECT_EQ(it.count(), 7);
 }
 
-TYPED_TEST(fm_index_iterator_test, down_range)
+TYPED_TEST(fm_index_iterator_test, extend_right_range)
 {
     typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // successful down(range)
+    // successful extend_right(range)
     TypeParam it(fm);
-    EXPECT_TRUE(it.down("CG"_dna4));
+    EXPECT_TRUE(it.extend_right("CG"_dna4));
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{1, 4})));
-    EXPECT_EQ(it.depth(), 2);
+    EXPECT_EQ(it.query_length(), 2);
     EXPECT_EQ(it.count(), 2);
 
-    EXPECT_TRUE(it.down("A"_dna4));
+    EXPECT_TRUE(it.extend_right("A"_dna4));
     EXPECT_EQ(it.locate(), (std::vector<uint64_t>{1}));
-    EXPECT_EQ(it.depth(), 3);
+    EXPECT_EQ(it.query_length(), 3);
     EXPECT_EQ(it.count(), 1);
 
-    // unsuccessful down(range), it remains untouched
+    // unsuccessful extend_right(range), it remains untouched
     TypeParam it_cpy = it;
-    EXPECT_FALSE(it.down("A"_dna4));
+    EXPECT_FALSE(it.extend_right("A"_dna4));
     EXPECT_EQ(it, it_cpy);
 
-    // down(range) does not take an empty range
+    // extend_right(range) does not take an empty range
     it_cpy = it;
-    ASSERT_DEATH(it.down(""_dna4), "");
+    #ifndef NDEBUG
+        EXPECT_DEATH(it.extend_right(""_dna4), "");
+    #endif
     EXPECT_EQ(it, it_cpy);
 }
 
 // TODO: doesn't work with the current structure of typed tests
-// TYPED_TEST(fm_index_iterator_test, down_convertible_range)
+// TYPED_TEST(fm_index_iterator_test, extend_right_convertible_range)
 // {
 //     typename TypeParam::index_type::text_type text{"ANGACGNN"_dna5};
 //     typename TypeParam::index_type fm{text};
 //
-//     // successful down(range) using a different alphabet
+//     // successful extend_right(range) using a different alphabet
 //     TypeParam it(fm);
-//     EXPECT_TRUE(it.down("GA"_dna4));
+//     EXPECT_TRUE(it.extend_right("GA"_dna4));
 //     EXPECT_EQ(it.locate(), (std::vector<uint64_t>{2}));
-//     EXPECT_EQ(it.depth(), 2);
+//     EXPECT_EQ(it.query_length(), 2);
 // }
 
-TYPED_TEST(fm_index_iterator_test, down_char)
+TYPED_TEST(fm_index_iterator_test, extend_right_char)
 {
     typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // successful down(char)
+    // successful extend_right(char)
     TypeParam it(fm);
-    EXPECT_TRUE(it.down(dna4::A));
+    EXPECT_TRUE(it.extend_right(dna4::A));
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 3})));
-    EXPECT_EQ(it.depth(), 1);
+    EXPECT_EQ(it.query_length(), 1);
 
-    EXPECT_TRUE(it.down(dna4::C));
+    EXPECT_TRUE(it.extend_right(dna4::C));
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 3})));
-    EXPECT_EQ(it.depth(), 2);
+    EXPECT_EQ(it.query_length(), 2);
 
-    // unsuccessful down(char), it remains untouched
+    // unsuccessful extend_right(char), it remains untouched
     TypeParam it_cpy = it;
-    EXPECT_FALSE(it.down(dna4::C));
+    EXPECT_FALSE(it.extend_right(dna4::C));
     EXPECT_EQ(it, it_cpy);
 }
 
 // TODO: doesn't work with the current structure of typed tests
-// TYPED_TEST(fm_index_iterator_test, down_convertible_char)
+// TYPED_TEST(fm_index_iterator_test, extend_right_convertible_char)
 // {
 //     typename TypeParam::index_type::text_type text{"ANGACGNN"_dna5};
 //     typename TypeParam::index_type fm{text};
 //
-//     // successful down(char) using a different alphabet
+//     // successful extend_right(char) using a different alphabet
 //     TypeParam it(fm);
-//     EXPECT_TRUE(it.down(dna4::A));
+//     EXPECT_TRUE(it.extend_right(dna4::A));
 //     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 3})));
-//     EXPECT_EQ(it.depth(), 1);
+//     EXPECT_EQ(it.query_length(), 1);
 // }
 
-TYPED_TEST(fm_index_iterator_test, down_range_and_right)
+TYPED_TEST(fm_index_iterator_test, extend_right_range_and_cycle)
 {
     typename TypeParam::index_type::text_type text{"ACGAACGC"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // successful down() and right()
+    // successful extend_right() and cycle_back()
     TypeParam it(fm);
-    EXPECT_TRUE(it.down("ACGA"_dna4));
+    EXPECT_TRUE(it.extend_right("ACGA"_dna4));
     EXPECT_EQ(it.locate(), (std::vector<uint64_t>{0}));
-    EXPECT_EQ(it.depth(), 4);
+    EXPECT_EQ(it.query_length(), 4);
 
-    EXPECT_TRUE(it.right());
+    EXPECT_TRUE(it.cycle_back());
     EXPECT_EQ(it.locate(), (std::vector<uint64_t>{4}));
-    EXPECT_EQ(it.depth(), 4);
+    EXPECT_EQ(it.query_length(), 4);
 }
 
-TYPED_TEST(fm_index_iterator_test, down_char_and_right)
+TYPED_TEST(fm_index_iterator_test, extend_right_char_and_cycle)
 {
     typename TypeParam::index_type::text_type text{"ACGAACGC"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // successful down() and right()
+    // successful extend_right() and cycle_back()
     TypeParam it(fm);
-    EXPECT_TRUE(it.down(dna4::A));
+    EXPECT_TRUE(it.extend_right(dna4::A));
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 3, 4})));
-    EXPECT_EQ(it.depth(), 1);
+    EXPECT_EQ(it.query_length(), 1);
 
-    EXPECT_TRUE(it.right());
+    EXPECT_TRUE(it.cycle_back());
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{1, 5, 7})));
-    EXPECT_EQ(it.depth(), 1);
+    EXPECT_EQ(it.query_length(), 1);
 }
 
-TYPED_TEST(fm_index_iterator_test, down_and_right)
+TYPED_TEST(fm_index_iterator_test, extend_right_and_cycle)
 {
     typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // successful down() and right()
+    // successful extend_right() and cycle_back()
     TypeParam it(fm);
-    EXPECT_TRUE(it.down());
+    EXPECT_TRUE(it.extend_right());
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{0, 3})));
-    EXPECT_EQ(it.depth(), 1);
+    EXPECT_EQ(it.query_length(), 1);
 
-    EXPECT_TRUE(it.right());
+    EXPECT_TRUE(it.cycle_back());
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{1, 4})));
-    EXPECT_EQ(it.depth(), 1);
+    EXPECT_EQ(it.query_length(), 1);
 
-    EXPECT_TRUE(it.down());
+    EXPECT_TRUE(it.extend_right());
     EXPECT_TRUE(is_set_equal(it.locate(), (std::vector<uint64_t>{1, 4})));
-    EXPECT_EQ(it.depth(), 2);
+    EXPECT_EQ(it.query_length(), 2);
 
-    // unsuccessful right(), it remains untouched
+    // unsuccessful cycle_back(), it remains untouched
     TypeParam it_cpy = it;
-    EXPECT_FALSE(it.right());
+    EXPECT_FALSE(it.cycle_back());
     EXPECT_EQ(it, it_cpy);
 
-    // unsuccessful down(), it remains untouched
+    // unsuccessful extend_right(), it remains untouched
     it = TypeParam(fm);
-    EXPECT_TRUE(it.down("GACG"_dna4));
+    EXPECT_TRUE(it.extend_right("GACG"_dna4));
     it_cpy = it;
-    EXPECT_FALSE(it.down());
+    EXPECT_FALSE(it.extend_right());
     EXPECT_EQ(it, it_cpy);
 
-    // right() cannot be called on the root node
+    // cycle_back() cannot be called on the root node
     it = TypeParam(fm);
-    ASSERT_DEATH(it.right(), "");
+    #ifndef NDEBUG
+        EXPECT_DEATH(it.cycle_back(), "");
+    #endif
     EXPECT_EQ(it, TypeParam(fm));
 }
 
-template <typename iterator_type, typename index_type>
-auto get_all_child_iterators(iterator_type it, index_type fm)
-{
-    std::array<iterator_type, alphabet_size_v<typename iterator_type::index_type::char_type>> result;
-
-    uint8_t i = 0;
-    if (it.down())
-    {
-        do
-        {
-            result[i++] = it;
-        } while (it.right());
-    }
-
-    // fill the rest with iterators pointing to root
-    while (i < iterator_type::index_type::char_type::value_size)
-    {
-        result[i++] = iterator_type(fm);
-    }
-
-    return result;
-}
-
-TYPED_TEST(fm_index_iterator_test, children)
-{
-    typename TypeParam::index_type::text_type text{"ACGTAGGT"_dna4};
-    typename TypeParam::index_type fm{text};
-
-    // all children
-    TypeParam it(fm);
-    EXPECT_EQ(it.children(), get_all_child_iterators(it, fm));
-
-    // some children
-    it.down(dna4::A);
-    EXPECT_EQ(it.children(), get_all_child_iterators(it, fm));
-
-    // one child
-    it.down(dna4::G);
-    EXPECT_EQ(it.children(), get_all_child_iterators(it, fm));
-
-    // no children
-    it.down("GT"_dna4);
-    EXPECT_EQ(it.children(), get_all_child_iterators(it, fm));
-}
-
-TYPED_TEST(fm_index_iterator_test, path_label)
+TYPED_TEST(fm_index_iterator_test, query)
 {
     typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
     typename TypeParam::index_type fm{text};
 
-    // path_label()
+    // query()
     TypeParam it(fm);
-    EXPECT_TRUE(it.down("ACG"_dna4));
+    EXPECT_TRUE(it.extend_right("ACG"_dna4));
     EXPECT_TRUE(ranges::equal(*it, "ACG"_dna4));
-    EXPECT_TRUE(ranges::equal(it.path_label(), "ACG"_dna4));
+    EXPECT_TRUE(ranges::equal(it.query(), "ACG"_dna4));
 }
-
+// TODO: test last_char()
 TYPED_TEST(fm_index_iterator_test, incomplete_alphabet)
 {
     // search a char that does not occur in the text (higher rank than largest char occurring in text)
@@ -332,7 +291,7 @@ TYPED_TEST(fm_index_iterator_test, incomplete_alphabet)
         typename TypeParam::index_type::text_type text{"ACGACG"_dna4};
         typename TypeParam::index_type fm{text};
         TypeParam it = TypeParam(fm);
-        EXPECT_FALSE(it.down(dna4::T));
+        EXPECT_FALSE(it.extend_right(dna4::T));
         EXPECT_EQ(it, TypeParam(fm));
     }
 
@@ -341,7 +300,7 @@ TYPED_TEST(fm_index_iterator_test, incomplete_alphabet)
         typename TypeParam::index_type::text_type text{"CGTCGT"_dna4};
         typename TypeParam::index_type fm{text};
         TypeParam it = TypeParam(fm);
-        EXPECT_FALSE(it.down(dna4::A));
+        EXPECT_FALSE(it.extend_right(dna4::A));
         EXPECT_EQ(it, TypeParam(fm));
     }
 
@@ -351,15 +310,15 @@ TYPED_TEST(fm_index_iterator_test, incomplete_alphabet)
         typename TypeParam::index_type::text_type text{"ATATAT"_dna4};
         typename TypeParam::index_type fm{text};
         TypeParam it = TypeParam(fm);
-        EXPECT_FALSE(it.down(dna4::C));
-        EXPECT_FALSE(it.down(dna4::G));
-        EXPECT_FALSE(it.down("ACGT"_dna4));
-        EXPECT_FALSE(it.down("G"_dna4));
+        EXPECT_FALSE(it.extend_right(dna4::C));
+        EXPECT_FALSE(it.extend_right(dna4::G));
+        EXPECT_FALSE(it.extend_right("ACGT"_dna4));
+        EXPECT_FALSE(it.extend_right("G"_dna4));
         EXPECT_EQ(it, TypeParam(fm));
 
-        EXPECT_TRUE(it.down(dna4::A));
-        EXPECT_TRUE(it.right());
-        EXPECT_TRUE(ranges::equal(it.path_label(), "T"_dna4));
+        EXPECT_TRUE(it.extend_right(dna4::A));
+        EXPECT_TRUE(it.cycle_back());
+        EXPECT_TRUE(ranges::equal(it.query(), "T"_dna4));
     }
 }
 
@@ -369,7 +328,7 @@ TYPED_TEST(fm_index_iterator_test, lazy_locate)
     typename TypeParam::index_type fm{text};
 
     TypeParam it = TypeParam(fm);
-    it.down("ACG"_dna4);
+    it.extend_right("ACG"_dna4);
 
     EXPECT_TRUE(ranges::equal(it.locate(), it.lazy_locate()));
 }

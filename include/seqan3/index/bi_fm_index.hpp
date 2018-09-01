@@ -34,17 +34,14 @@
 
 /*!\file
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief Provides the unidirectional seqan3::fm_index.
+ * \brief Provides the bidirectional seqan3::bi_fm_index.
  */
 
 #pragma once
 
-#include <sdsl/suffix_trees.hpp>
-
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include <seqan3/index/concept.hpp>
 #include <seqan3/index/fm_index.hpp>
 #include <seqan3/index/bi_fm_index_iterator.hpp>
 #include <seqan3/core/metafunction/range.hpp>
@@ -66,19 +63,14 @@ namespace seqan3
  */
 struct bi_fm_index_default_traits
 {
-    // TODO: seems a bit over-engineered to me and complicated for users. it would be nicer to have:
-    // using sdsl_index_type = ...; and
-    // using rev_sdsl_index_type = ...;
-    // but we need unidirectional trait objects
     //!\brief Type of the underlying forward SDSL index.
     using fm_index_traits = fm_index_default_traits;
 
     //!\brief Type of the underlying reverse SDSL index.
-    using rev_fm_index_traits = fm_index_default_traits; // trait object without sampling.
-    // but not good for creating unidirectional iterators on the reverse index ...
+    using rev_fm_index_traits = fm_index_default_traits; // TODO: trait object without sampling.
 };
 
-/*!\brief The SeqAn Bidirectional FM Index.
+/*!\brief The SeqAn Bidirectional FM Index
  * \ingroup bi_fm_index
  * \implements seqan3::bi_fm_index_concept
  * \tparam text_t The type of the text to be indexed; must satisfy std::ranges::ForwardRange.
@@ -105,10 +97,10 @@ protected:
 public:
     //!\brief The type of the forward indexed text.
     using text_type = text_t;
+    // TODO: maybe make the two following types protected:
     //!\brief The type of the forward indexed text.
     using rev_text_type = decltype(ranges::view::reverse(*text));
-
-
+    //!\brief The index traits object.
     using index_traits = bi_fm_index_traits;
 
 protected:
@@ -125,13 +117,18 @@ protected:
      */
     using sdsl_char_type = typename sdsl_index_type::alphabet_type::char_type;
 
-    //!\brief \todo
+    //!\brief Access to a reversed view of the text. Needed when a unidirectional iterator on the reversed text is
+    //        constructed from the bidirectional index.
     rev_text_type rev_text;
 
+    //!\brief The type of the underlying SDSL index for the original text.
     using fm_index_type = fm_index<text_t, typename bi_fm_index_traits::fm_index_traits>;
+    //!\brief The type of the underlying SDSL index for the reversed text.
     using rev_fm_index_type = fm_index<rev_text_type, typename bi_fm_index_traits::rev_fm_index_traits>;
 
+    //!\brief Underlying index from the SDSL for the original text.
     fm_index_type fwd_fm;
+    //!\brief Underlying index from the SDSL for the reversed text.
     rev_fm_index_type rev_fm;
 
     //!\publicsection
@@ -142,21 +139,18 @@ public:
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename sdsl_index_type::size_type;
 
-    //!\brief The type of the (unidirectional) iterator.
+    //!\brief The type of the bidirectional iterator.
     using iterator_type = bi_fm_index_iterator<bi_fm_index<text_t, bi_fm_index_traits>>;
+    //!\brief The type of the unidirectional iterator on the original text.
     using fwd_iterator_type = fm_index_iterator<fm_index_type>;
+    //!\brief The type of the unidirectional iterator on the reversed text.
     using rev_iterator_type = fm_index_iterator<rev_fm_index_type>;
 
-    // friend class bi_fm_index_iterator<fm_index<text_t, bi_fm_index_traits>>;
-    template <typename index_t>
-    friend class bi_fm_index_iterator/*<bi_fm_index<text_t, bi_fm_index_traits>>*/;
-    template <typename index_t>
-    friend class fm_index_iterator/*<fm_index_type>*/;
-    // friend class fm_index_iterator<rev_fm_index_type>;
-    //friend class detail::fm_index_iterator_node<fm_index<text_t, fm_index_traits>>;
+    template <typename bi_fm_index_t>
+    friend class bi_fm_index_iterator;
 
-    // static constexpr bool is_bidirectional = false;
-    // static constexpr uint8_t dimensions = DIMENSIONS;
+    template <typename fm_index_t>
+    friend class fm_index_iterator;
 
     /*!\name Constructors and destructor
      * \{
@@ -265,8 +259,11 @@ public:
     //     return !(*this == rhs);
     // }
 
-    /*!\brief Returns an iterator on the index.
-     * \returns Returns a (unidirectional) iterator on the index pointing to the root node of the implicit suffix tree.
+    /*!\brief Returns a seqan3::bi_fm_index_iterator on the index that can be used for searching.
+     *        \cond DEV
+     *            Iterator is pointing to the root node of the implicit affix tree.
+     *        \endcond
+     * \returns Returns a bidirectional seqan3::bi_fm_index_iterator on the index.
      *
      * ### Complexity
      *
@@ -276,17 +273,42 @@ public:
      *
      * No-throw guarantee.
      */
-    iterator_type root() const noexcept
+    iterator_type begin() const noexcept
     {
         return iterator_type(*this);
     }
 
-    fwd_iterator_type fwd_root() const noexcept
+    /*!\brief Returns a unidirectional seqan3::fm_index_iterator on the original text of the bidirectional index that
+     *        can be used for searching.
+     * \returns Returns a unidirectional seqan3::fm_index_iterator on the index of the original text.
+     *
+     * ### Complexity
+     *
+     * Constant.
+     *
+     * ### Exceptions
+     *
+     * No-throw guarantee.
+     */
+    fwd_iterator_type fwd_begin() const noexcept
     {
        return fwd_iterator_type(fwd_fm);
     }
 
-    rev_iterator_type rev_root() const noexcept
+    /*!\brief Returns a unidirectional seqan3::fm_index_iterator on the reversed text of the bidirectional index that
+     *        can be used for searching. Note that because of the text being reversed, extend_right() resp. cycle_back()
+     *        correspond to extend_left() resp. cycle_front() on the bidirectional index iterator.
+     * \returns Returns a unidirectional seqan3::fm_index_iterator on the index of the reversed text.
+     *
+     * ### Complexity
+     *
+     * Constant.
+     *
+     * ### Exceptions
+     *
+     * No-throw guarantee.
+     */
+    rev_iterator_type rev_begin() const noexcept
     {
        return rev_iterator_type(rev_fm);
     }
