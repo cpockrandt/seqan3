@@ -32,37 +32,31 @@
 //
 // ============================================================================
 
-/*!\file
- * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief Meta-header for the search module.
+ /*!\file
+  * \brief Meta-header for the \link configuration search configuration module \endlink.
+  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+  */
+
+ #pragma once
+
+/*!\defgroup configuration Configuration
+ * \brief Data structures and utility functions for configuring search algorithm.
+ * \ingroup search
  *
- * \defgroup search Search
- *
- * ## Introduction
- *
- * Searching is a key component in many sequence analysis tools. The search module is a powerful and easy way to search
- * sequences in a large text or an arbitrary nested collection of texts. When it comes to searching, indices are a core
- * component for searching large amounts of data and are used for tools such as read mappers, assemblers or protein
- * search tools. There are currently two major kind of indices: FM indices and k-mer indices (also known as q-gram
- * indices).
- *
- * \todo Elaborate on that (space consumption for growing k, maybe a rule of thumb).
- *
- * Generally speaking k-mer indices support very fast searching of exact k-mers (strings of length k) or k-mers with
- * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
- * with arbitrary pattern lengths and error numbers / positions.
- *
- * SeqAn3 currently supports very fast FM indices. For more details visit the \ref submodule_fm_index
- * "FM index submodule".
- *
- * \todo k-mer indices are coming soon. Stay tuned!
+ * \todo Write detailed landing page.
  */
 
-#pragma once
+#include <seqan3/search/configuration/search_config_max_error.hpp>
+#include <seqan3/search/configuration/search_config_max_error_rate.hpp>
+#include <seqan3/search/configuration/search_config_error_type.hpp>
+#include <seqan3/search/configuration/search_config_return_type.hpp>
+#include <seqan3/search/configuration/search_config_strategy_all.hpp>
+#include <seqan3/search/configuration/search_config_strategy_all_best.hpp>
+#include <seqan3/search/configuration/search_config_strategy_best.hpp>
+#include <seqan3/search/configuration/search_config_strategy_strata.hpp>
+#include <seqan3/search/configuration/search_config_on_hit.hpp>
+#include <seqan3/search/configuration/utility.hpp>
 
-#include <seqan3/search/fm_index/all.hpp>
-#include <seqan3/search/configuration/all.hpp>
-#include <seqan3/search/search.hpp>
-
-#include <seqan3/index/all.hpp> // TODO: should we include this?
-
+/*!\namespace seqan3::search_cfg
+ * \brief A special sub namespace for the search configurations.
+ */
