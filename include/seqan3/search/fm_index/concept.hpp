@@ -50,11 +50,14 @@
 namespace seqan3
 {
 
-/*!\addtogroup fm_index
+/*!\addtogroup submodule_fm_index
  * \{
  */
 
-/*!\interface seqan3::sdsl_index_concept <>
+namespace detail
+{
+
+/*!\interface seqan3::detail::sdsl_index_concept <>
  * \brief Concept for SDSL FM indices (which are called compressed suffix arrays in the SDSL).
  */
 //!\cond
@@ -65,31 +68,33 @@ concept sdsl_index_concept = requires (t sdsl_index)
 
     requires requires (t sdsl_index, typename t::char_type c, typename t::size_type lb, typename t::size_type rb)
     {
-        sdsl_index.size();
-        sdsl_index[0]; // suffix array access
-        sdsl_index.comp2char[0];
-        sdsl_index.char2comp[0];
-        sdsl_index.sigma;
-        sdsl_index.C[0];
-        sdsl_index.bwt.rank(lb, c);
-        sdsl_index.wavelet_tree.lex_count(lb, rb, c);
-        sdsl::construct_im(sdsl_index, sdsl::int_vector<8> {}, 0);
+        { sdsl_index.size() } -> typename t::size_type;
+        { sdsl_index[0] }; // suffix array access
+        { sdsl_index.comp2char[0] } -> uint8_t;
+        { sdsl_index.char2comp[0] } -> uint8_t;
+        { sdsl_index.sigma };
+        { sdsl_index.C[0] };
+        { sdsl_index.bwt.rank(lb, c) };
+        { sdsl_index.wavelet_tree.lex_count(lb, rb, c) };
+        { sdsl::construct_im(sdsl_index, sdsl::int_vector<8> {}, 0) };
     };
 };
 //!\endcond
-/*!\name Requirements for seqan3::sdsl_index_concept
- * \relates seqan3::sdsl_index_concept
+/*!\name Requirements for seqan3::detail::sdsl_index_concept
+ * \relates seqan3::detail::sdsl_index_concept
  * \brief The SDSL index must support the following interface to work with SeqAn3 FM indices.
  * \{
  *
  * \typedef typename t::size_type size_type
- * \memberof seqan3::sdsl_index_concept
+ * \memberof seqan3::detail::sdsl_index_concept
  * \brief Type for representing the size of the indexed text.
  *
  * \todo Write me.
  *
  * \}
  */
+
+} // namespace detail
 
 /*!\interface seqan3::fm_index_traits_concept <>
  * \brief Concept for unidirectional FM Index traits.
@@ -102,7 +107,7 @@ concept fm_index_traits_concept = requires (t v)
 {
     typename t::sdsl_index_type;
 
-    requires sdsl_index_concept<typename t::sdsl_index_type>;
+    requires detail::sdsl_index_concept<typename t::sdsl_index_type>;
 };
 //!\endcond
 /*!\name Requirements for seqan3::fm_index_traits_concept
@@ -112,7 +117,7 @@ concept fm_index_traits_concept = requires (t v)
  *
  * \typedef typename t::sdsl_index_type sdsl_index_type
  * \memberof seqan3::fm_index_traits_concept
- * \brief Declares the type of the underlying SDSL index. Must satisfy the seqan3::sdsl_index_concept.
+ * \brief Declares the type of the underlying SDSL index. Must satisfy the seqan3::detail::sdsl_index_concept.
  *
  * \}
  */
@@ -225,12 +230,6 @@ concept fm_index_iterator_concept = std::Semiregular<t> && requires (t it)
  * \todo Write me!
  *
  * \}
- */
-
-//!\}
-
-/*!\addtogroup bi_fm_index
- * \{
  */
 
 /*!\interface seqan3::bi_fm_index_traits_concept <>

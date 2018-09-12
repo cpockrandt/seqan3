@@ -32,67 +32,32 @@
 //
 // ============================================================================
 
-/*!\file
- * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief Provides the internal representation of a node of the seqan3::fm_index_iterator.
- */
+ /*!\file
+  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+  * \brief Meta-header for the search module.
+  *
+  * \defgroup search Search
+  *
+  * ## Introduction
+  *
+  * Searching is a key component in many sequence analysis tools. The search module is a powerful and easy way to search
+  * sequences in a large text or an arbitrary nested collection of texts. When it comes to searching, indices are a core
+  * component for searching large amounts of data and are used for tools such as read mappers, assemblers or protein
+  * search tools. There are currently two major kind of indices: FM indices and k-mer indices (also known as q-gram
+  * indices).
+  *
+  * \todo Elaborate on that (space consumption for growing k, maybe a rule of thumb).
+  *
+  * Generally speaking k-mer indices support very fast searching of exact k-mers (strings of length k) or k-mers with
+  * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
+  * with arbitrary pattern lengths and error numbers / positions.
+  *
+  * SeqAn3 currently supports only very fast FM indices. For more details visit the \ref submodule_fm_index
+  * "FM index submodule".
+  *
+  * \todo k-mer indices are coming soon. Stay tuned!
+  */
 
 #pragma once
 
-#include <type_traits>
-
-#include <seqan3/core/platform.hpp>
-
-namespace seqan3::detail
-{
-
-/*!\addtogroup index
- * \{
- */
-
-//!\privatesection
-
-/*!\brief Internal representation of the node of an FM index iterator.
- * \ingroup fm_index
- * \tparam index_t The type of the underlying index; must satisfy seqan3::fm_index_concept.
- */
-template <typename index_t>
-struct fm_index_iterator_node
-{
-    //!\brief Type for representing positions in the indexed text.
-    using size_type = typename index_t::size_type;
-    /*!\brief The type of the reduced alphabet type. (The reduced alphabet might be smaller than the original alphabet
-     *        in case not all possible characters occur in the indexed text.)
-     */
-    using sdsl_char_type = typename index_t::sdsl_char_type;
-
-    //!\brief Left suffix array bound.
-    size_type lb;
-    //!\brief Right suffix array bound.
-    size_type rb;
-    //!\brief Depth of the node in the suffix tree, i.e. length of the searched query.
-    size_type depth;
-    //!\brief Label of the last edge moved down. Needed for cycle_right().
-    sdsl_char_type last_char;
-
-    //!\brief Comparison of two iterator nodes.
-    bool operator==(fm_index_iterator_node const & rhs) const
-    {
-        // NOTE: last_char is implementation specific for cycle_right().
-        // lb, rb and depth already determine the node in the suffix tree.
-        // Thus there is no need to compare last_char.
-        return lb == rhs.lb && rb == rhs.rb && depth == rhs.depth;
-    }
-
-    //!\brief Comparison of two iterator nodes.
-    bool operator!=(fm_index_iterator_node const & rhs) const
-    {
-        return !(*this == rhs);
-    }
-};
-
-//!\publicsection
-
-//!\}
-
-}
+#include <seqan3/search/fm_index/all.hpp>

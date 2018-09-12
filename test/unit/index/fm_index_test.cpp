@@ -34,7 +34,7 @@
 
 #include <type_traits>
 
-#include <seqan3/index/all.hpp>
+#include <seqan3/search/fm_index/all.hpp>
 #include <seqan3/test/tmp_filename.hpp>
 
 #include <gtest/gtest.h>

@@ -45,23 +45,22 @@
 
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/slice.hpp>
-#include <range/v3/view/transform.hpp>
 
 #include <seqan3/alphabet/all.hpp>
-#include <seqan3/index/bi_fm_index.hpp>
 #include <seqan3/core/metafunction/range.hpp>
+#include <seqan3/search/fm_index/bi_fm_index.hpp>
+#include <seqan3/std/view/transform.hpp>
 
 namespace seqan3
 {
 
-/*!\addtogroup index
+/*!\addtogroup submodule_fm_index
  * \{
  */
 
 /*!\brief The SeqAn Bidirectional FM Index Iterator.
- * \ingroup bi_fm_index
  * \implements seqan3::bi_fm_index_iterator_concept
- * \tparam index_t The type of the underlying index; must satisfy seqan3::bi_fm_index_concept.
+ * \tparam index_t The type of the underlying index; must model seqan3::bi_fm_index_concept.
  * \details
  *
  * The iterator's interface provides searching a string both from left to right as well as from right to left in the
@@ -104,22 +103,22 @@ protected:
     //!\brief Type of the underlying FM index.
     index_type const * m_index;
 
-    /*!\name Suffix array ranges of forward and reverse iterators.
+    /*!\name Suffix array intervals of forward and reverse iterators.
      * \{
      */
-     //!\brief Left suffix array range of the forward iterator (for extend_right).
+     //!\brief Left suffix array interval of the forward iterator (for extend_right).
     size_type m_fwd_lb;
-    //!\brief Right suffix array range of the forward iterator (for extend_right).
+    //!\brief Right suffix array interval of the forward iterator (for extend_right).
     size_type m_fwd_rb;
-    //!\brief Left suffix array range of the reverse iterator (for extend_left).
+    //!\brief Left suffix array interval of the reverse iterator (for extend_left).
     size_type m_rev_lb;
-    //!\brief Right suffix array range of the reverse iterator (for extend_left).
+    //!\brief Right suffix array interval of the reverse iterator (for extend_left).
     size_type m_rev_rb;
     //\}
 
-    /*!\name Information for cycle_back() and cycle_front()
-     *       Only stored for the iterator that has been used last to go down an edge because once one iterator is
-     *       touched, the others parent information become invalid and cannot be used for cycle_back() anymore.
+    /*!\name A note on cycle_back() and cycle_front()
+     * \brief Only stored for the iterator that has been used last to go down an edge because once one iterator is
+     *        touched, the others parent information becomes invalid and cannot be used for cycle_back() anymore.
      * \{
      */
 
@@ -127,9 +126,9 @@ protected:
     // extend_right() or cycle_back() resp. extend_left() or cycle_front(), (i.e. either fwd or rev). Thus there is no
     // need to store it twice. Once the iterator is switched, the information becomes invalid anyway.
 
-    //!\brief Left suffix array range of the parent node.
+    //!\brief Left suffix array interval of the parent node.
     size_type m_parent_lb;
-    //!\brief Left suffix array range of the parent node.
+    //!\brief Left suffix array interval of the parent node.
     size_type m_parent_rb;
     //!\brief Label of the last edge moved down. Needed for cycle_back() or cycle_front().
     sdsl_char_type m_last_char;
@@ -140,11 +139,11 @@ protected:
 
     // supports assertions to check whether cycle_back() resp. cycle_front() is called on the same direction as the last
     // extend_right([...]) resp. extend_left([...])
-    #ifndef NDEBUG
-        //!\brief Stores the information which iterator has been used last for extend_*([...]) to allow for assert() in
-        //        cycle_back() and cycle_front()
-        bool fwd_iter_last_used = false;
-    #endif
+#ifndef NDEBUG
+    //!\brief Stores the information which iterator has been used last for extend_*([...]) to allow for assert() in
+    //        cycle_back() and cycle_front()
+    bool fwd_iter_last_used = false;
+#endif
 
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept
@@ -153,7 +152,7 @@ protected:
     }
 
     //!\brief Optimized bidirectional search without alphabet mapping
-    template <typename csa_t>
+    template <detail::sdsl_index_concept csa_t>
     bool bidirectional_search(csa_t const & csa,
                               size_type const l_fwd, size_type const r_fwd,
                               size_type const l_bwd, size_type const r_bwd,
@@ -164,16 +163,16 @@ protected:
         assert(l_fwd <= r_fwd && r_fwd < csa.size());
         assert(r_fwd + 1 >= l_fwd && r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
 
-        if constexpr(std::is_same_v<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+        if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
             size_type const c_begin = csa.C[c];
 
-    		if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
+            if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
             {
-    			l_fwd_res = c_begin;
-    			l_bwd_res = c_begin;
-    			r_fwd_res = csa.C[c + 1] - 1;
-    			r_bwd_res = r_fwd_res;
+                l_fwd_res = c_begin;
+                l_bwd_res = c_begin;
+                r_fwd_res = csa.C[c + 1] - 1;
+                r_bwd_res = r_fwd_res;
             }
             else
             {
@@ -195,25 +194,25 @@ protected:
                 return false;
             }
 
-        	size_type const c_begin = csa.C[cc];
-    		if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
+            size_type const c_begin = csa.C[cc];
+            if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
             {
-    			l_fwd_res = c_begin;
-    			l_bwd_res = c_begin;
-    			r_fwd_res = csa.C[cc + 1] - 1;
-    			r_bwd_res = r_fwd_res;
-            	return true;
+                l_fwd_res = c_begin;
+                l_bwd_res = c_begin;
+                r_fwd_res = csa.C[cc + 1] - 1;
+                r_bwd_res = r_fwd_res;
+                return true;
             }
             else
             {
-            	auto      const r_s_b  = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
-            	size_type const rank_l = std::get<0>(r_s_b);
-            	size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
-            	size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-            	l_fwd_res = c_begin + rank_l;
-            	r_fwd_res = c_begin + rank_r;
-            	l_bwd_res = l_bwd + s;
-            	r_bwd_res = r_bwd - b;
+                auto      const r_s_b  = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
+                size_type const rank_l = std::get<0>(r_s_b);
+                size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
+                size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
+                l_fwd_res = c_begin + rank_l;
+                r_fwd_res = c_begin + rank_r;
+                l_bwd_res = l_bwd + s;
+                r_bwd_res = r_bwd - b;
             }
         }
         assert(r_fwd_res + 1 >= l_fwd_res && r_bwd_res + 1 - l_bwd_res == r_fwd_res + 1 - l_fwd_res);
@@ -221,7 +220,7 @@ protected:
     }
 
     //!\brief Optimized bidirectional search for cycle_back() and cycle_front() without alphabet mapping
-    template <typename csa_t>
+    template <detail::sdsl_index_concept csa_t>
     bool bidirectional_search_cycle(csa_t const & csa,
                                     size_type const l_fwd, size_type const r_fwd,
                                     size_type const l_bwd, size_type const r_bwd,
@@ -231,7 +230,7 @@ protected:
     {
         assert(l_fwd <= r_fwd && r_fwd < csa.size());
 
-        if constexpr(std::is_same_v<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+        if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
             size_type const c_begin = csa.C[c];
             auto const r_s_b = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
@@ -262,8 +261,6 @@ protected:
             return r_fwd_res >= l_fwd_res; // r_fwd_res + 1 - l_fwd_res
         }
     }
-
-    //!\publicsection
 
 public:
 
@@ -300,12 +297,12 @@ public:
     bool operator==(bi_fm_index_iterator const & rhs) const noexcept
     {
         assert(m_index != nullptr);
-        // equal SA range implies equal parent node information (or both are root nodes)
-        assert(!(m_fwd_lb == rhs.m_fwd_lb && m_fwd_rb == rhs.m_fwd_rb && m_depth == rhs.m_depth)
-            || m_depth == 0
-            || m_parent_lb == rhs.m_parent_lb && m_parent_rb == rhs.m_parent_rb && m_last_char == rhs.m_last_char);
+        // equal SA interval implies equal parent node information (or both are root nodes)
+        assert(!(m_fwd_lb == rhs.m_fwd_lb && m_fwd_rb == rhs.m_fwd_rb && m_depth == rhs.m_depth) ||
+               m_depth == 0 ||
+               m_parent_lb == rhs.m_parent_lb && m_parent_rb == rhs.m_parent_rb && m_last_char == rhs.m_last_char);
 
-        return m_fwd_lb == rhs.m_fwd_lb && m_fwd_rb == rhs.m_fwd_rb && m_depth == rhs.m_depth;
+        return std::tie(m_fwd_lb, m_fwd_rb, m_depth) == std::tie(rhs.m_fwd_lb, rhs.m_fwd_rb, rhs.m_depth);
     }
 
     /*!\brief Compares two iterators.
@@ -336,8 +333,9 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet until it finds the smallest character that
-     * is represented by an edge.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet until it finds the smallest character that is represented by an edge.
      *
      * ### Exceptions
      *
@@ -345,9 +343,9 @@ public:
      */
     bool extend_right() noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = true;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = true;
+    #endif
 
         assert(m_index != nullptr);
 
@@ -387,8 +385,9 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet until it finds the smallest character that
-     * is represented by an edge.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet until it finds the smallest character that is represented by an edge.
      *
      * ### Exceptions
      *
@@ -396,9 +395,9 @@ public:
      */
     bool extend_left() noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = false;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = false;
+    #endif
 
         assert(m_index != nullptr);
 
@@ -437,7 +436,7 @@ public:
      *
      * ### Complexity
      *
-     * O(T_BACKWARD_SEARCH)
+     * \f$O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -449,9 +448,9 @@ public:
     //!\endcond
     bool extend_right(char_t const c) noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = true;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = true;
+    #endif
 
         assert(m_index != nullptr);
 
@@ -486,7 +485,7 @@ public:
      *
      * ### Complexity
      *
-     * O(T_BACKWARD_SEARCH)
+     * \f$O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -498,9 +497,9 @@ public:
     //!\endcond
     bool extend_left(char_t const c) noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = false;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = false;
+    #endif
 
        assert(m_index != nullptr);
 
@@ -538,7 +537,7 @@ public:
      *
      * ### Complexity
      *
-     * |seq| * O(T_BACKWARD_SEARCH).
+     * \f$|seq| * O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -550,9 +549,9 @@ public:
     //!\endcond
     bool extend_right(query_t && seq) noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = true;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = true;
+    #endif
 
         auto first = seq.begin();
         auto last = seq.end();
@@ -599,7 +598,7 @@ public:
      *
      * ### Complexity
      *
-     * |seq| * O(T_BACKWARD_SEARCH).
+     * \f$|seq| * O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -611,9 +610,9 @@ public:
     //!\endcond
     bool extend_left(query_t && seq) noexcept
     {
-        #ifndef NDEBUG
-            fwd_iter_last_used = false;
-        #endif
+    #ifndef NDEBUG
+        fwd_iter_last_used = false;
+    #endif
 
         auto first = seq.begin();
         auto last = seq.end();
@@ -667,8 +666,10 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet starting from the rightmost character
-     * until it finds the query with a larger rightmost character.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet starting from the rightmost character until it finds the query with a larger
+     * rightmost character.
      *
      * ### Exceptions
      *
@@ -677,9 +678,9 @@ public:
     bool cycle_back() noexcept
     {
         // cycle_back() can only be used into the same direction that has previously been used for down(...)
-        #ifndef NDEBUG
-            assert(fwd_iter_last_used);
-        #endif
+    #ifndef NDEBUG
+        assert(fwd_iter_last_used);
+    #endif
 
         assert(m_index != nullptr && query_length() > 0);
 
@@ -724,8 +725,10 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet starting from the leftmost character
-     * until it finds the query with a larger leftmost character.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet starting from the leftmost character until it finds the query with a larger
+     * leftmost character.
      *
      * ### Exceptions
      *
@@ -734,9 +737,9 @@ public:
     bool cycle_front() noexcept
     {
         // cycle_front() can only be used into the same direction that has previously been used for down(...)
-        #ifndef NDEBUG
-            assert(!fwd_iter_last_used);
-        #endif
+    #ifndef NDEBUG
+        assert(!fwd_iter_last_used);
+    #endif
 
         assert(m_index != nullptr && query_length() > 0);
 
@@ -807,7 +810,10 @@ public:
         assert(m_index != nullptr);
         // depth == 0 -> root node
         assert(m_depth != 0 ||
-            (m_fwd_lb == m_rev_lb && m_fwd_rb == m_rev_rb && m_fwd_lb == 0 && m_fwd_rb == m_index->size() - 1));
+               (m_fwd_lb == m_rev_lb &&
+                m_fwd_rb == m_rev_rb &&
+                m_fwd_lb == 0 &&
+                m_fwd_rb == m_index->size() - 1));
 
         return m_depth;
     }
@@ -821,7 +827,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp get_fwd_iterator
+     * \snippet test/snippet/index/bi_fm_index_iterator.cpp to_fwd_iterator
      *
      * ### Complexity
      *
@@ -831,23 +837,23 @@ public:
      *
      * No-throw guarantee.
      */
-    fwd_iterator get_fwd_iterator() const noexcept
+    fwd_iterator to_fwd_iterator() const noexcept
     {
         assert(m_index != nullptr);
 
-        fwd_iterator it(m_index->fwd_fm);
+        fwd_iterator it{m_index->fwd_fm};
         it.m_parent_lb = m_parent_lb;
         it.m_parent_rb = m_parent_rb;
         it.m_node = {m_fwd_lb, m_fwd_rb, m_depth, m_last_char};
 
-        #ifndef NDEBUG
-            if (!fwd_iter_last_used)
-            {
-                // invalidate parent range
-                it.m_parent_lb = 1;
-                it.m_parent_rb = 0;
-            }
-        #endif
+    #ifndef NDEBUG
+        if (!fwd_iter_last_used)
+        {
+            // invalidate parent interval
+            it.m_parent_lb = 1;
+            it.m_parent_rb = 0;
+        }
+    #endif
 
         return it;
     }
@@ -863,7 +869,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp get_rev_iterator
+     * \snippet test/snippet/index/bi_fm_index_iterator.cpp to_rev_iterator
      *
      * ### Complexity
      *
@@ -873,23 +879,23 @@ public:
      *
      * No-throw guarantee.
      */
-    rev_iterator get_rev_iterator() const noexcept
+    rev_iterator to_rev_iterator() const noexcept
     {
         assert(m_index != nullptr);
 
-        rev_iterator it(m_index->rev_fm);
+        rev_iterator it{m_index->rev_fm};
         it.m_parent_lb = m_parent_lb;
         it.m_parent_rb = m_parent_rb;
         it.m_node = {m_rev_lb, m_rev_rb, m_depth, m_last_char};
 
-        #ifndef NDEBUG
-            if (fwd_iter_last_used)
-            {
-                // invalidate parent range
-                it.m_parent_lb = 1;
-                it.m_parent_rb = 0;
-            }
-        #endif
+    #ifndef NDEBUG
+        if (fwd_iter_last_used)
+        {
+            // invalidate parent interval
+            it.m_parent_lb = 1;
+            it.m_parent_rb = 0;
+        }
+    #endif
 
         return it;
     }
@@ -901,7 +907,7 @@ public:
      *
      * ### Complexity
      *
-     * O(SAMPLING_RATE * T_BACKWARD_SEARCH) + query_length().
+     * \f$O(SAMPLING\_RATE * T_{BACKWARD\_SEARCH}) + query\_length()\f$
      *
      * ### Exceptions
      *
@@ -918,9 +924,9 @@ public:
     //!\copydoc query()
     auto operator*() const noexcept
     {
-       assert(m_index != nullptr && m_index->text != nullptr);
+        assert(m_index != nullptr && m_index->text != nullptr);
 
-       return query();
+        return query();
     }
 
     /*!\brief Counts the number of occurrences of the searched query in the text.
@@ -946,7 +952,7 @@ public:
      *
      * ### Complexity
      *
-     * count() * O(T_BACKWARD_SEARCH * SAMPLING_RATE).
+     * \f$count() * O(T_{BACKWARD\_SEARCH} * SAMPLING\_RATE)\f$
      *
      * ### Exceptions
      *
@@ -970,7 +976,7 @@ public:
      *
      * ### Complexity
      *
-     * count() * O(T_BACKWARD_SEARCH * SAMPLING_RATE).
+     * \f$count() * O(T_{BACKWARD\_SEARCH} * SAMPLING\_RATE)\f$
      *
      * ### Exceptions
      *
@@ -982,7 +988,8 @@ public:
 
         size_type const _offset = offset();
         return ranges::view::iota(m_fwd_lb, m_fwd_lb + count())
-               | ranges::view::transform([*this, _offset] (auto sa_pos) {
+             | view::transform([*this, _offset] (auto sa_pos)
+               {
                    return _offset - m_index->fwd_fm.m_index[sa_pos];
                });
     }

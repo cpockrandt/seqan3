@@ -39,22 +39,22 @@
 
 #pragma once
 
-#include <range/v3/view/reverse.hpp>
-#include <range/v3/view/transform.hpp>
+#include <filesystem>
+#include <utility>
 
-#include <seqan3/index/fm_index.hpp>
-#include <seqan3/index/bi_fm_index_iterator.hpp>
+#include <seqan3/search/fm_index/fm_index.hpp>
+#include <seqan3/search/fm_index/bi_fm_index_iterator.hpp>
+#include <seqan3/std/view/reverse.hpp>
 #include <seqan3/core/metafunction/range.hpp>
 
 namespace seqan3
 {
 
-/*!\addtogroup index
+/*!\addtogroup submodule_fm_index
  * \{
  */
 
 /*!\brief The default Bidirectional FM Index Configuration.
- * \ingroup bi_fm_index
  *
  * \details
  *
@@ -71,19 +71,18 @@ struct bi_fm_index_default_traits
 };
 
 /*!\brief The SeqAn Bidirectional FM Index
- * \ingroup bi_fm_index
  * \implements seqan3::bi_fm_index_concept
- * \tparam text_t The type of the text to be indexed; must satisfy std::ranges::ForwardRange.
+ * \tparam text_t The type of the text to be indexed; must model std::ranges::RandomAccessRange.
  * \tparam bi_fm_index_traits The traits determining the implementation of the underlying SDSL indices;
-                              must satisfy seqan3::bi_fm_index_traits_concept.
+                              must model seqan3::bi_fm_index_traits_concept.
  * \details
  *
  * \todo
  */
-template <std::ranges::ForwardRange text_t, bi_fm_index_traits_concept bi_fm_index_traits = bi_fm_index_default_traits>
+template <std::ranges::RandomAccessRange text_t, bi_fm_index_traits_concept bi_fm_index_traits = bi_fm_index_default_traits>
 //!\cond
-    requires alphabet_concept<innermost_value_type_t<text_t>>
-        && std::is_same_v<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
+    requires alphabet_concept<innermost_value_type_t<text_t>> &&
+             std::Same<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
 //!\endcond
 class bi_fm_index
 {
@@ -92,14 +91,12 @@ protected:
     //!\brief Pointer to the indexed text.
     text_t const * text = nullptr;
 
-    //!\publicsection
-
 public:
     //!\brief The type of the forward indexed text.
     using text_type = text_t;
     // TODO: maybe make the two following types protected:
     //!\brief The type of the forward indexed text.
-    using rev_text_type = decltype(ranges::view::reverse(*text));
+    using rev_text_type = decltype(view::reverse(*text));
     //!\brief The index traits object.
     using index_traits = bi_fm_index_traits;
 
@@ -131,8 +128,6 @@ protected:
     //!\brief Underlying index from the SDSL for the reversed text.
     rev_fm_index_type rev_fm;
 
-    //!\publicsection
-
 public:
     //!\brief The type of the underlying character of text_type.
     using char_type = innermost_value_type_t<text_t>;
@@ -161,11 +156,10 @@ public:
     bi_fm_index(bi_fm_index &&) = default;
     bi_fm_index & operator=(bi_fm_index &&) = default;
     ~bi_fm_index() = default;
-    //!\}
 
     /*!\brief Constructor that immediately constructs the index given a range.
      *        The range cannot be an rvalue (i.e. a temporary object).
-     * \tparam text_t The type of range to construct from; must satisfy std::ranges::ForwardRange.
+     * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
      * ### Complexity
@@ -186,11 +180,14 @@ public:
 
     //!\overload
     bi_fm_index(text_t const &&) = delete;
+    //!\}
 
     /*!\brief Constructs the index given a range. The range cannot be an rvalue (i.e. a temporary object).
-     *        \todo Poorely implemented with regard to the memory peak due to not matching interfaces with the SDSL
-     * \tparam text_t The type of range to construct from; must satisfy std::ranges::ForwardRange.
+     * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
+     *
+     * \details \todo This has to be better implemented with regard to the memory peak due to not matching interfaces
+     *                with the SDSL.
      *
      * ### Complexity
      *
@@ -204,7 +201,7 @@ public:
     {
         assert(text.begin() != text.end()); // text must not be empty
         this->text = &text;
-        rev_text = ranges::view::reverse(text);
+        rev_text = view::reverse(text);
         fwd_fm.construct(text);
         rev_fm.construct(rev_text);
     }
@@ -275,7 +272,7 @@ public:
      */
     iterator_type begin() const noexcept
     {
-        return iterator_type(*this);
+        return {*this};
     }
 
     /*!\brief Returns a unidirectional seqan3::fm_index_iterator on the original text of the bidirectional index that
@@ -292,7 +289,7 @@ public:
      */
     fwd_iterator_type fwd_begin() const noexcept
     {
-       return fwd_iterator_type(fwd_fm);
+       return {fwd_fm};
     }
 
     /*!\brief Returns a unidirectional seqan3::fm_index_iterator on the reversed text of the bidirectional index that
@@ -310,7 +307,7 @@ public:
      */
     rev_iterator_type rev_begin() const noexcept
     {
-       return rev_iterator_type(rev_fm);
+       return {rev_fm};
     }
 
     /*!\brief Loads the index from disk. Temporary function until cereal is supported.
@@ -325,9 +322,13 @@ public:
      *
      * No guarantees.
      */
-    bool load(std::string const & path)
+    bool load(std::filesystem::path const & path)
     {
-        return fwd_fm.load(path + ".fwd") && rev_fm.load(path + ".rev");
+        std::filesystem::path path_fwd{path};
+        std::filesystem::path path_rev{path};
+        path_fwd += std::filesystem::path{".fwd"};
+        path_rev += std::filesystem::path{".rev"};
+        return fwd_fm.load(path_fwd) && rev_fm.load(path_rev);
     }
 
     /*!\brief Stores the index to disk. Temporary function until cereal is supported.
@@ -342,9 +343,13 @@ public:
      *
      * No guarantees.
      */
-    bool store(std::string const & path) const
+    bool store(std::filesystem::path const & path) const
     {
-        return fwd_fm.store(path + ".fwd") && rev_fm.store(path + ".rev");
+        std::filesystem::path path_fwd{path};
+        std::filesystem::path path_rev{path};
+        path_fwd += std::filesystem::path{".fwd"};
+        path_rev += std::filesystem::path{".rev"};
+        return fwd_fm.store(path_fwd) && rev_fm.store(path_rev);
     }
 
 };

@@ -39,16 +39,20 @@
 
 #pragma once
 
+#include <filesystem>
+
 #include <sdsl/suffix_trees.hpp>
 
-#include <range/v3/view/reverse.hpp>
-#include <range/v3/view/transform.hpp>
+#include <range/v3/algorithm/copy.hpp>
 
-#include <seqan3/index/concept.hpp>
-#include <seqan3/index/fm_index_iterator.hpp>
-#include <seqan3/index/detail/fm_index_iterator.hpp>
-#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
 #include <seqan3/core/metafunction/range.hpp>
+#include <seqan3/range/view/to_rank.hpp>
+#include <seqan3/search/fm_index/concept.hpp>
+#include <seqan3/search/fm_index/detail/csa_alphabet_strategy.hpp>
+#include <seqan3/search/fm_index/detail/fm_index_iterator.hpp>
+#include <seqan3/search/fm_index/fm_index_iterator.hpp>
+#include <seqan3/std/view/reverse.hpp>
+#include <seqan3/std/view/transform.hpp>
 
 namespace seqan3
 {
@@ -62,20 +66,19 @@ template <typename index_t>
 class bi_fm_index_iterator;
 //!\endcond
 
-/*!\addtogroup index
+/*!\addtogroup submodule_fm_index
  * \{
  */
 
 /*!\brief The default FM Index Configuration.
- * \ingroup fm_index
  *
  * \details
  *
  * ### Running time / Space consumption
  *
- * SAMPLING_RATE = 16
- * SIGMA: alphabet_size<char_type> where char_type is the seqan3 alphabet type (e.g. dna4 has an alphabet size of 4)
- * T_BACKWARD_SEARCH: O(log SIGMA)
+ * \f$SAMPLING\_RATE = 16\f$
+ * \f$\Sigma\f$: alphabet_size<char_type> where char_type is the seqan3 alphabet type (e.g. dna4 has an alphabet size of 4)
+ * \f$T_{BACKWARD\_SEARCH}: O(\log \Sigma)\f$
  *
  * \todo Asymptotic space consumption:
  *
@@ -99,11 +102,10 @@ struct fm_index_default_traits
 };
 
 /*!\brief The SeqAn FM Index.
- * \ingroup fm_index
  * \implements seqan3::fm_index_concept
- * \tparam text_t The type of the text to be indexed; must satisfy std::ranges::ForwardRange.
+ * \tparam text_t The type of the text to be indexed; must model std::ranges::ForwardRange.
  * \tparam fm_index_traits The traits determining the implementation of the underlying SDSL index;
-                           must satisfy seqan3::fm_index_traits_concept.
+                           must model seqan3::fm_index_traits_concept.
  * \details
  *
  * The seqan3::fm_index is a fast and space-efficient string index to search strings and collections of strings.
@@ -123,10 +125,10 @@ struct fm_index_default_traits
  *
  * \todo The underlying implementation of the FM Index (Rank data structure, sampling rates, etc.) can be specified ...
  */
-template <std::ranges::ForwardRange text_t, fm_index_traits_concept fm_index_traits = fm_index_default_traits>
+template <std::ranges::RandomAccessRange text_t, fm_index_traits_concept fm_index_traits = fm_index_default_traits>
 //!\cond
-    requires alphabet_concept<innermost_value_type_t<text_t>>
-        && std::is_same_v<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
+    requires alphabet_concept<innermost_value_type_t<text_t>> &&
+             std::Same<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
 //!\endcond
 class fm_index
 {
@@ -144,8 +146,6 @@ protected:
     sdsl_index_type m_index;
     //!\brief Pointer to the indexed text.
     text_t const * text = nullptr;
-
-    //!\publicsection
 
 public:
     //!\brief The type of the indexed text.
@@ -176,11 +176,10 @@ public:
     fm_index(fm_index &&) = default;
     fm_index & operator=(fm_index &&) = default;
     ~fm_index() = default;
-    //!\}
 
     /*!\brief Constructor that immediately constructs the index given a range.
      *        The range cannot be an rvalue (i.e. a temporary object).
-     * \tparam text_t The type of range to construct from; must satisfy std::ranges::ForwardRange.
+     * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
      * ### Complexity
@@ -201,11 +200,14 @@ public:
 
     //!\overload
     fm_index(text_t const &&) = delete;
+    //!\}
 
     /*!\brief Constructs the index given a range. The range cannot be an rvalue (i.e. a temporary object).
-     *        \todo Poorely implemented with regard to the memory peak due to not matching interfaces with the SDSL.
-     * \tparam text_t The type of range to construct from; must satisfy std::ranges::ForwardRange.
+     * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
+     *
+     * \details \todo This has to be better implemented with regard to the memory peak due to not matching interfaces
+     *                with the SDSL.
      *
      * ### Complexity
      *
@@ -223,14 +225,11 @@ public:
         // * check what happens in sdsl when constructed twice!
         // * choose between in-memory/external and construction algorithms
         // * sdsl construction currently only works for int_vector, std::string and char *, not ranges in general
-        sdsl::int_vector<8> tmp_text(text.size());
-
         // uint8_t largest_char = 0;
-        for (auto it = text.begin(); it != text.end(); it++)
-        {
-            // largest_char = std::max(largest_char, static_cast<uint8_t>(to_rank(*it) + 1));
-            tmp_text[text.end() - it - 1] = to_rank(*it) + 1; // reverse and increase rank by one
-        }
+        sdsl::int_vector<8> tmp_text(text.size());
+        ranges::copy(text | view::reverse | view::to_rank | view::transform([] (uint8_t const r) { return r + 1; }),
+                     ranges::begin(tmp_text)); // reverse and increase rank by one
+
         sdsl::construct_im(m_index, tmp_text, 0);
 
         // TODO: would be nice but doesn't work since it's private and the public member references are const
@@ -305,7 +304,7 @@ public:
      */
     iterator_type begin() const noexcept
     {
-        return iterator_type(*this);
+        return {*this};
     }
 
     /*!\brief Loads the index from disk. Temporary function until cereal is supported.
@@ -320,7 +319,7 @@ public:
      *
      * No guarantees.
      */
-    bool load(std::string const & path)
+    bool load(std::filesystem::path const & path)
     {
         return sdsl::load_from_file(m_index, path);
     }
@@ -337,7 +336,7 @@ public:
      *
      * No guarantees.
      */
-    bool store(std::string const & path) const
+    bool store(std::filesystem::path const & path) const
     {
         return sdsl::store_to_file(m_index, path);
     }

@@ -46,25 +46,24 @@
 
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/slice.hpp>
-#include <range/v3/view/transform.hpp>
 
 #include <seqan3/alphabet/all.hpp>
-#include <seqan3/index/detail/fm_index_iterator.hpp>
-#include <seqan3/index/detail/csa_alphabet_strategy.hpp>
-#include <seqan3/index/fm_index.hpp>
 #include <seqan3/core/metafunction/range.hpp>
+#include <seqan3/search/fm_index/detail/csa_alphabet_strategy.hpp>
+#include <seqan3/search/fm_index/detail/fm_index_iterator.hpp>
+#include <seqan3/search/fm_index/fm_index.hpp>
+#include <seqan3/std/view/transform.hpp>
 
 namespace seqan3
 {
 
-/*!\addtogroup index
+/*!\addtogroup submodule_fm_index
  * \{
  */
 
 /*!\brief The SeqAn FM Index Iterator.
- * \ingroup fm_index
  * \implements seqan3::fm_index_iterator_concept
- * \tparam index_t The type of the underlying index; must satisfy seqan3::fm_index_concept.
+ * \tparam index_t The type of the underlying index; must model seqan3::fm_index_concept.
  * \details
  *
  * The iterator's interface provides searching a string from left to right in the indexed text.
@@ -103,9 +102,9 @@ protected:
 
     //!\brief Type of the underlying FM index.
     index_type const * m_index;
-    //!\brief Left suffix array range of the parent node. Needed for right().
+    //!\brief Left suffix array interval of the parent node. Needed for right().
     size_type m_parent_lb;
-    //!\brief Right suffix array range of the parent node. Needed for right().
+    //!\brief Right suffix array interval of the parent node. Needed for right().
     size_type m_parent_rb;
     //!\brief Underlying index from the SDSL.
     node_type m_node;
@@ -120,13 +119,13 @@ protected:
     }
 
     //!\brief Optimized backward search without alphabet mapping
-    template <typename csa_t>
+    template <detail::sdsl_index_concept csa_t>
     bool backward_search(csa_t const & csa, size_type const l, size_type const r, sdsl_char_type const c,
                          size_type & l_res, size_type & r_res) const noexcept
     {
         assert(l <= r && r < csa.size());
 
-        if constexpr(std::is_same_v<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+        if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
             size_type const c_begin = csa.C[c];
             if (r + 1 - l == csa.size()) // [[unlikely]]
@@ -165,8 +164,6 @@ protected:
         }
     }
 
-    //!\publicsection
-
 public:
 
     /*!\name Constructors and destructor
@@ -203,7 +200,8 @@ public:
         assert(m_node != rhs.m_node ||
             (query_length() == 0 || (m_parent_lb == rhs.m_parent_lb && m_parent_rb == rhs.m_parent_rb)));
 
-        // position in the implicit suffix tree is defined by the SA range and depth. No need to compare parent ranges
+        // position in the implicit suffix tree is defined by the SA interval and depth.
+        // No need to compare parent intervals
         return m_node == rhs.m_node;
     }
 
@@ -235,8 +233,9 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet until it finds the smallest character that
-     * is represented by an edge.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet until it finds the smallest character that is represented by an edge.
      *
      * ### Exceptions
      *
@@ -274,7 +273,7 @@ public:
      *
      * ### Complexity
      *
-     * O(T_BACKWARD_SEARCH)
+     * \f$O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -313,7 +312,7 @@ public:
      *
      * ### Complexity
      *
-     * |seq| * O(T_BACKWARD_SEARCH).
+     * \f$|seq| * O(T_{BACKWARD\_SEARCH})\f$
      *
      * ### Exceptions
      *
@@ -368,8 +367,10 @@ public:
      *
      * ### Complexity
      *
-     * O(SIGMA) * O(T_BACKWARD_SEARCH). It scans linearly over the alphabet starting from the rightmost character
-     * until it finds the query with a larger rightmost character.
+     * \f$O(\Sigma) * O(T_{BACKWARD\_SEARCH})\f$
+     *
+     * It scans linearly over the alphabet starting from the rightmost character until it finds the query with a larger
+     * rightmost character.
      *
      * ### Exceptions
      *
@@ -377,7 +378,7 @@ public:
      */
     bool cycle_back() noexcept
     {
-        // m_parent_lb > m_parent_rb --> invalid range
+        // m_parent_lb > m_parent_rb --> invalid interval
         assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
 
         sdsl_char_type c = m_node.last_char + 1;
@@ -414,7 +415,7 @@ public:
      */
     typename index_t::char_type last_char() noexcept
     {
-        // m_parent_lb > m_parent_rb --> invalid range
+        // m_parent_lb > m_parent_rb --> invalid interval
         assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
 
         typename index_t::char_type c;
@@ -452,7 +453,7 @@ public:
      *
      * ### Complexity
      *
-     * O(SAMPLING_RATE * T_BACKWARD_SEARCH) + query_length().
+     * \f$O(SAMPLING\_RATE * T_{BACKWARD\_SEARCH}) + query\_length()\f$
      *
      * ### Exceptions
      *
@@ -497,7 +498,7 @@ public:
      *
      * ### Complexity
      *
-     * count() * O(T_BACKWARD_SEARCH * SAMPLING_RATE).
+     * \f$count() * O(T_{BACKWARD\_SEARCH} * SAMPLING\_RATE)\f$
      *
      * ### Exceptions
      *
@@ -521,7 +522,7 @@ public:
      *
      * ### Complexity
      *
-     * count() * O(T_BACKWARD_SEARCH * SAMPLING_RATE).
+     * \f$count() * O(T_{BACKWARD\_SEARCH} * SAMPLING\_RATE)\f$
      *
      * ### Exceptions
      *
@@ -533,7 +534,7 @@ public:
 
         size_type const _offset = offset();
         return ranges::view::iota(m_node.lb, m_node.lb + count())
-               | ranges::view::transform([*this, _offset] (auto sa_pos) { return _offset - m_index->m_index[sa_pos]; });
+               | view::transform([*this, _offset] (auto sa_pos) { return _offset - m_index->m_index[sa_pos]; });
     }
 
 };

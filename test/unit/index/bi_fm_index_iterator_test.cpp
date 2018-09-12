@@ -38,8 +38,8 @@
 
 #include <range/v3/algorithm/equal.hpp>
 
-#include <seqan3/index/bi_fm_index.hpp>
 #include <seqan3/alphabet/nucleotide/dna4.hpp>
+#include <seqan3/search/fm_index/bi_fm_index.hpp>
 
 #include <gtest/gtest.h>
 
@@ -148,14 +148,14 @@ TYPED_TEST(bi_fm_index_iterator_test, extend_and_cycle)
 
     auto it = bi_fm.begin();
     EXPECT_TRUE(it.extend_right()); // "A"
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_front(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_front(), "");
+#endif
     EXPECT_TRUE(it.extend_left()); // "GA"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{7}));
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_back(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_back(), "");
+#endif
     EXPECT_TRUE(it.cycle_front()); // "TA"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{4}));
     EXPECT_FALSE(it.cycle_front()); // "TA"
@@ -170,25 +170,25 @@ TYPED_TEST(bi_fm_index_iterator_test, extend_range_and_cycle)
     auto it = bi_fm.begin();
     EXPECT_TRUE(it.extend_right("AC"_dna4)); // "AC"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{0, 8}));
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_front(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_front(), "");
+#endif
     EXPECT_TRUE(it.cycle_back()); // "AG"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{5, 12}));
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_front(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_front(), "");
+#endif
     EXPECT_FALSE(it.extend_left("TT"_dna4)); // "AG"
     EXPECT_TRUE(it.extend_left("TGC"_dna4)); // "CGTAG"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{9}));
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_back(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_back(), "");
+#endif
     EXPECT_TRUE(it.cycle_front()); // "GGTAG"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{2}));
 }
 
-TYPED_TEST(bi_fm_index_iterator_test, get_fwd_iterator)
+TYPED_TEST(bi_fm_index_iterator_test, to_fwd_iterator)
 {
     typename TypeParam::index_type::text_type text{"ACGGTAGGACGTAGC"_dna4};
     typename TypeParam::index_type bi_fm{text};
@@ -198,7 +198,7 @@ TYPED_TEST(bi_fm_index_iterator_test, get_fwd_iterator)
         EXPECT_TRUE(it.extend_right("GTAGC"_dna4)); // "GTAGC"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{10}));
 
-        auto fwd_it = it.get_fwd_iterator();
+        auto fwd_it = it.to_fwd_iterator();
         EXPECT_TRUE(fwd_it.cycle_back()); // "GTAGG"
         EXPECT_TRUE(is_set_equal(fwd_it.locate(), std::vector<uint64_t>{3}));
         EXPECT_TRUE(ranges::equal(*fwd_it, "GTAGG"_dna4));
@@ -210,10 +210,10 @@ TYPED_TEST(bi_fm_index_iterator_test, get_fwd_iterator)
         EXPECT_TRUE(it.extend_left("GATG"_dna4)); // "GTAG"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{3, 10}));
 
-        auto fwd_it = it.get_fwd_iterator();
-        #ifndef NDEBUG
-            EXPECT_DEATH(fwd_it.cycle_back(), "");
-        #endif
+        auto fwd_it = it.to_fwd_iterator();
+    #ifndef NDEBUG
+        EXPECT_DEATH(fwd_it.cycle_back(), "");
+    #endif
         EXPECT_TRUE(fwd_it.extend_right());
         EXPECT_TRUE(is_set_equal(fwd_it.locate(), std::vector<uint64_t>{10}));
         EXPECT_TRUE(ranges::equal(*fwd_it, "GTAGC"_dna4));
@@ -223,7 +223,7 @@ TYPED_TEST(bi_fm_index_iterator_test, get_fwd_iterator)
     }
 }
 
-TYPED_TEST(bi_fm_index_iterator_test, get_rev_iterator)
+TYPED_TEST(bi_fm_index_iterator_test, to_rev_iterator)
 {
     typename TypeParam::index_type::text_type text{"ACGGTAGGACGTAGC"_dna4};
     typename TypeParam::index_type bi_fm{text};
@@ -233,7 +233,7 @@ TYPED_TEST(bi_fm_index_iterator_test, get_rev_iterator)
         EXPECT_TRUE(it.extend_left("GATGC"_dna4)); // "CGTAG"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{9}));
 
-        auto rev_it = it.get_rev_iterator(); // text "CGATGCAGGATGGCA"
+        auto rev_it = it.to_rev_iterator(); // text "CGATGCAGGATGGCA"
         EXPECT_TRUE(is_set_equal(rev_it.locate(), std::vector<uint64_t>{1}));
         EXPECT_TRUE(ranges::equal(*rev_it, "GATGC"_dna4));
         EXPECT_TRUE(rev_it.cycle_back()); // "GATGG"
@@ -247,10 +247,10 @@ TYPED_TEST(bi_fm_index_iterator_test, get_rev_iterator)
         EXPECT_TRUE(it.extend_right("GTAG"_dna4)); // "GTAG"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{3, 10}));
 
-        auto rev_it = it.get_rev_iterator(); // text "CGATGCAGGATGGCA"
-        #ifndef NDEBUG
-            EXPECT_DEATH(rev_it.cycle_back(), "");
-        #endif
+        auto rev_it = it.to_rev_iterator(); // text "CGATGCAGGATGGCA"
+    #ifndef NDEBUG
+        EXPECT_DEATH(rev_it.cycle_back(), "");
+    #endif
         EXPECT_TRUE(rev_it.extend_right()); // "CGTAG" resp. "GATGC"
         EXPECT_TRUE(is_set_equal(rev_it.locate(), std::vector<uint64_t>{1}));
         EXPECT_TRUE(ranges::equal(*rev_it, "GATGC"_dna4));

@@ -34,21 +34,24 @@
 
  /*!\file
   * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
-  * \brief Meta-header for the index module.
+  * \brief Meta-header for the FM index module.
   *
-  * \defgroup index Index
-  *
-  * ## Introduction
-  *
-  * Indices are a core component for searching large amounts of data and are used for tools such as read mappers,
-  * assemblers or protein search tools. There are currently two major kind of indices: FM indices and k-mer indices
-  * (also known as q-gram indices).
-  *
-  * Besides searching the index by yourself using the iterator interfaces, SeqAn3 also provides a very powerful
-  * search module that makes using iterators and implementing your own index-based search algorithms
-  * superfluous.
+  * \defgroup submodule_fm_index FM Index
+  * \ingroup search
   *
   * ## FM Indices
+  *
+  * FM indices are text indices similar to suffix trees or suffix arrays which are based on the Burrow Wheeler
+  * transform and a sampled suffix array. FM indices are significantly smaller in space without sacrificing speed. They
+  * also allow for adjusting the speed respectively space by choosing the underlying data structures accordingly or
+  * modyfing the sampling rate of the sampled suffix array.
+  *
+  * The FM indices are based on the <a href="https://github.com/xxsds/sdsl-lite">SDSL 3</a> (succinct data structure
+  * library). You are able to specify the underlying implementation of the SDSL to adjust it to your needs as well as
+  * choose one of the preconfigured indices that are suitable for common applications in sequence analysis.
+  *
+  * For technical reasons you can currently only build indices over a seqan3::alphabet_concept if its
+  * seqan3::alphabet_size is smaller or equal 256.
   *
   * You can choose between unidirectional and bidirectional FM indices (which can be thought of suffix trees
   * and affix trees, i.e. a combination of suffix and prefix trees being able to search a pattern from left to
@@ -56,24 +59,9 @@
   * FM indices are more powerful for approximate string matching at the cost of a higher space consumption
   * \todo (between a factor of X and Y depending on the configuration).
   *
-  * The FM indices are based on the <a href="https://github.com/xxsds/sdsl-lite">SDSL 3</a> (succinct data structure
-  * library). You are able to specify the underlying implementation of the SDSL to adjust it to your needs as well as
-  * choose one of the preconfigured indices that are suitable for common applications in sequence analysis.
-  *
-  * Even though the SDSL supports both byte and integer alphabets, SeqAn3 is optimised for byte alphabets. For
-  * integer alphabets you currently cannot use any of the index interfaces of SeqAn3.
-  *
-  * All FM indices have a suffix-tree-like interface. Even though FM indices are actually prefix trees, they
-  * can be searched like a suffix tree for convenience, i.e. there is no need to reverse the text before
-  * indexing, the pattern before searching or recomputing text positions afterwards.
-  *
-  * ## k-mer Indices
-  *
-  * Coming soon. Stay tuned!
-  *
   */
 
 #pragma once
 
-#include <seqan3/index/fm_index.hpp>
-#include <seqan3/index/bi_fm_index.hpp>
+#include <seqan3/search/fm_index/bi_fm_index.hpp>
+#include <seqan3/search/fm_index/fm_index.hpp>

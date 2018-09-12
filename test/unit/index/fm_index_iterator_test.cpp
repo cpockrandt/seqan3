@@ -36,9 +36,9 @@
 
 #include <range/v3/algorithm/equal.hpp>
 
-#include <seqan3/index/fm_index.hpp>
-#include <seqan3/index/bi_fm_index.hpp>
 #include <seqan3/alphabet/nucleotide/dna4.hpp>
+#include <seqan3/search/fm_index/bi_fm_index.hpp>
+#include <seqan3/search/fm_index/fm_index.hpp>
 #include <seqan3/test/comparison.hpp>
 
 #include <gtest/gtest.h>
@@ -148,9 +148,9 @@ TYPED_TEST(fm_index_iterator_test, extend_right_range)
 
     // extend_right(range) does not take an empty range
     it_cpy = it;
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.extend_right(""_dna4), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.extend_right(""_dna4), "");
+#endif
     EXPECT_EQ(it, it_cpy);
 }
 
@@ -266,9 +266,9 @@ TYPED_TEST(fm_index_iterator_test, extend_right_and_cycle)
 
     // cycle_back() cannot be called on the root node
     it = TypeParam(fm);
-    #ifndef NDEBUG
-        EXPECT_DEATH(it.cycle_back(), "");
-    #endif
+#ifndef NDEBUG
+    EXPECT_DEATH(it.cycle_back(), "");
+#endif
     EXPECT_EQ(it, TypeParam(fm));
 }
 
@@ -283,6 +283,7 @@ TYPED_TEST(fm_index_iterator_test, query)
     EXPECT_TRUE(ranges::equal(*it, "ACG"_dna4));
     EXPECT_TRUE(ranges::equal(it.query(), "ACG"_dna4));
 }
+
 // TODO: test last_char()
 TYPED_TEST(fm_index_iterator_test, incomplete_alphabet)
 {
@@ -332,8 +333,6 @@ TYPED_TEST(fm_index_iterator_test, lazy_locate)
 
     EXPECT_TRUE(ranges::equal(it.locate(), it.lazy_locate()));
 }
-
-// TODO: tests for other alphabets
 
 TEST(fm_index, concepts)
 {
