@@ -33,7 +33,8 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides search strategy seqan3::search_cfg::strategy_strategy_all_best configuration.
+ * \brief Provides the configuration for maximum number of substitution errors in percent to the query length across all
+ *        error types.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -44,71 +45,74 @@
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
 
-/*!\addtogroup search
- * \{
- */
-
 namespace seqan3::detail
 {
-/*!\brief Configuration element to receive only all best hits (i.e. the hits with lowest number of errors).
- * \ingroup configuration
+/*!\brief A configuration element for the maximum number of substitution errors (mismatches) in percent to the query
+          length.
+ * \ingroup search_configuration
  */
-struct search_config_strategy_all_best
+struct search_config_max_substitution_error_rate
 {
-    //!\cond
-    bool value{true};
-    //!\endcond
+    //!\brief The actual value.
+    double value;
 };
 
-/*!\brief The seqan3::search_cfg::strategy_all_best adaptor enabling pipe notation.
- * \ingroup configuration
+/*!\brief The max_substitution_error_rate adaptor enabling pipe notation.
+ * \ingroup search_configuration
  */
-struct search_config_strategy_all_best_adaptor : public configuration_fn_base<search_config_strategy_all_best_adaptor>
+struct search_config_max_substitution_error_rate_adaptor : public configuration_fn_base<search_config_max_substitution_error_rate_adaptor>
 {
 
-    /*!\brief Adds to the configuration the seqan3::search_cfg::strategy_all_best configuration element.
-     * \param[in] cfg The configuration to be extended.
-     * \returns A new configuration containing the seqan3::search_cfg::strategy_all_best configuration element.
+    /*!\brief Adds to the configuration a max_substitution_error_rate configuration element.
+     * \param[in] cfg  The configuration to be extended.
+     * \param[in] rate The maximum error rate used for the algorithm.
+     * \returns A new configuration containing the max_substitution_error_rate configuration element.
      */
     template <typename configuration_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg) const
+    constexpr auto invoke(configuration_t && cfg, double const rate) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::strategy_all_best, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::strategy_all_best));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::max_substitution_error_rate,
+                                                      remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_substitution_error_rate));
 
-        return std::forward<configuration_t>(cfg).push_front(search_config_strategy_all_best{});
+        if (0 > rate || rate > 1)
+            throw std::invalid_argument("Error rates must be between 0 and 1 but max_substitution_error_rate has been set to "
+                                            + to_string(rate) + ".");
+
+        search_config_max_substitution_error_rate tmp{rate};
+        return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_strategy_all_best.
-//!\ingroup configuration
+//!\brief Helper template meta-function associated with detail::search_config_max_substitution_error_rate.
+//!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::strategy_all_best>
+struct on_search_config<search_cfg::id::max_substitution_error_rate>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_strategy_all_best>::type;
+    using invoke = typename std::is_same<t, search_config_max_substitution_error_rate>::type;
 };
 
-//!\brief Mapping from the detail::search_config_strategy_all_best type to it's corresponding seqan3::search_cfg::id.
-//!\ingroup configuration
+//!\brief Mapping from the detail::search_config_max_substitution_error_rate type to it's corresponding seqan3::search_cfg::id.
+//!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_strategy_all_best>
+struct search_config_type_to_id<search_config_max_substitution_error_rate>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::strategy_all_best;
+    static constexpr search_cfg::id value = search_cfg::id::max_substitution_error_rate;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief Configuration element to receive only all best hits (i.e. the hits with lowest number of errors).
- * \ingroup configuration
+/*!\brief A configuration element for the maximum number of substitution errors (mismatches) in percent to the query
+          length.
+ * \ingroup search_configuration
  */
-inline constexpr detail::search_config_strategy_all_best_adaptor strategy_all_best;
-} // namespace seqan3::search_cfg
+inline constexpr detail::search_config_max_substitution_error_rate_adaptor max_substitution_error_rate;
 
-//!\}
+} // namespace seqan3::search_cfg

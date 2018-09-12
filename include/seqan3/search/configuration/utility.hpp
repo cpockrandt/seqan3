@@ -59,22 +59,28 @@ namespace seqan3::search_cfg
  * ### Example
  *
  * ```cpp
- * search_cfg::search_configuration cfg = search_cfg::gap_linear(gap_cost{-10});
- * auto cost = get<search_cfg::id::gap>(cfg);  // cost = -10;
+ * search_cfg::search_configuration cfg = search_cfg::max_total_errors(3);
+ * auto max_total_errors = get<search_cfg::id::max_total_errors>(cfg);  // max_total_errors = 3;
  * ```
  */
 enum struct id : uint8_t
 {
     //!\brief Identifier for max_errors configuration.
-    max_error,
-    max_error_rate,
-    error_type,
-    return_type,
-    strategy_all,
-    strategy_best,
-    strategy_all_best,
-    strategy_strata,
+    max_deletion_error,
+    max_deletion_error_rate,
+    max_insertion_error,
+    max_insertion_error_rate,
+    max_substitution_error,
+    max_substitution_error_rate,
+    max_total_error,
+    max_total_error_rate,
     on_hit,
+    return_index_iterator,
+    return_text_position,
+    strategy_all,
+    strategy_all_best,
+    strategy_best,
+    strategy_strata,
     //!\cond
     // ATTENTION: Must always be the last item; will be used to determine the number of ids.
     SIZE
@@ -116,14 +122,15 @@ namespace seqan3::detail
  *
  * ```cpp
  * template <>
- * struct on_search_config<search_cfg::id::gap>
+ * struct on_search_config<search_cfg::id::max_total_errors>
  * {
  *     template <typename t>
- *     using invoke = std::is_type_specialisation_of<t, search_config_gap>;
+ *     using invoke = typename std::is_same<t, search_config_max_total_errors>::type;
  * };
  * ```
  *
- * In this example `search_config_gap` is a template class representing the configuration element for the gap model.
+ * In this example `search_config_max_total_errors` is a class representing the configuration element for maximum numbers
+ * of total errors (i.e. across all error types).
  */
 template <search_cfg::id e>
 struct on_search_config
@@ -174,16 +181,24 @@ inline constexpr std::array<std::array<bool, static_cast<uint8_t>(search_cfg::id
                             static_cast<uint8_t>(search_cfg::id::SIZE)> search_config_validation_matrix =
 {
     {
-        // max_error, max_error_rate, error_type, return_type, all, best, all_best, strata, on_hit
-        { false, false, true , true , true , true , true , true , true  }, // max_error
-        { false, false, true , true , true , true , true , true , true  }, // max_error_rate
-        { true , true , false, true , true , true , true , true , true  }, // error_type
-        { true , true , true , false, true , true , true , true , true  }, // return_type
-        { true , true , true , true , false, false, false, false, true  }, // all
-        { true , true , true , true , false, false, false, false, true  }, // best
-        { true , true , true , true , false, false, false, false, true  }, // all_best
-        { true , true , true , true , false, false, false, false, true  }, // strata
-        { true , true , true , true , true , true , true , true , false }  // on_hit
+        // max_deletion_error, max_deletion_error_rate, max_insertion_error, max_insertion_error_rate,
+        // max_substitution_error, max_substitution_error_rate, max_total_error, max_total_error_rate, on_hit,
+        // return_index_iterator, return_text_position, strategy_all, strategy_all_best, strategy_best, strategy_strata
+        { 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
+        { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 }
     }
 };
 

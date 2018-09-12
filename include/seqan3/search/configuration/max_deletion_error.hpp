@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides gap configurations.
+ * \brief Provides the configuration for maximum number of deletion errors.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -46,25 +46,26 @@
 
 namespace seqan3::detail
 {
-/*!\brief A configuration element for the maximum number of errors.
- * \ingroup configuration
+/*!\brief A configuration element for the maximum number of deletion errors.
+ * \ingroup search_configuration
  */
-struct search_config_max_error
+struct search_config_max_deletion_error
 {
     //!\brief The actual value.
     uint8_t value;
 };
 
-/*!\brief The max_error adaptor enabling pipe notation.
- * \ingroup configuration
+/*!\brief The max_deletion_error adaptor enabling pipe notation.
+ * \ingroup search_configuration
  */
-struct search_config_max_error_adaptor : public configuration_fn_base<search_config_max_error_adaptor>
+struct search_config_max_deletion_error_adaptor : public configuration_fn_base<search_config_max_deletion_error_adaptor>
 {
 
-    /*!\brief Adds to the configuration a max_error configuration element.
+    /*!\brief Adds to the configuration a max_deletion_error configuration element.
+     * \relates seqan3::search_config_max_deletion_error
      * \param[in] cfg  The configuration to be extended.
-     * \param[in] nbr The number of maximum errors used for the algorithm. (TODO: maximum vs maximal?)
-     * \returns A new configuration containing the max_error configuration element.
+     * \param[in] nbr The number of maximum deletion errors used for the algorithm.
+     * \returns A new configuration containing the max_deletion_error configuration element.
      */
     template <typename configuration_t>
     //!\cond
@@ -72,40 +73,39 @@ struct search_config_max_error_adaptor : public configuration_fn_base<search_con
     //!\endcond
     constexpr auto invoke(configuration_t && cfg, uint8_t const nbr) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::max_error, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_error));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::max_deletion_error, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_deletion_error));
 
-        search_config_max_error tmp{nbr};
+        search_config_max_deletion_error tmp{nbr};
         return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_max_error.
-//!\ingroup configuration
+//!\brief Helper template meta-function associated with detail::search_config_max_deletion_error.
+//!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::max_error>
+struct on_search_config<search_cfg::id::max_deletion_error>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_max_error>::type;
+    using invoke = typename std::is_same<t, search_config_max_deletion_error>::type;
 };
 
-//!\brief Mapping from the detail::search_config_max_error type to it's corresponding seqan3::search_cfg::id.
-//!\ingroup configuration
+//!\brief Mapping from the detail::search_config_max_deletion_error type to it's corresponding seqan3::search_cfg::id.
+//!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_max_error>
+struct search_config_type_to_id<search_config_max_deletion_error>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::max_error;
+    static constexpr search_cfg::id value = search_cfg::id::max_deletion_error;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief A configuration adaptor for linear max_error.
- * \ingroup configuration
+/*!\brief A configuration element for the maximum number of deletion errors.
+ * \ingroup search_configuration
  */
-inline constexpr detail::search_config_max_error_adaptor max_error; // TODO: all singular
+inline constexpr detail::search_config_max_deletion_error_adaptor max_deletion_error;
 
-// inline constexpr detail::search_config_gap_adaptor<seqan3::gap_affine> gap_affine;
 } // namespace seqan3::search_cfg

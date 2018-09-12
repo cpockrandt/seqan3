@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides gap configurations.
+ * \brief Provides the configuration for returning positions in the text.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -43,93 +43,73 @@
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
-#include <seqan3/core/add_enum_bitwise_operators.hpp>
 
-namespace seqan3::search_cfg
-{
-
-enum struct error_type_enum : uint8_t {
-    none         = 0,
-    substitution = 1,
-    insertion    = 2,
-    deletion     = 4
-};
-
-} // namespace seqan3::search_cfg
-
-namespace seqan3
-{
-
-//!\cond
-template <>
-constexpr bool add_enum_bitwise_operators<search_cfg::error_type_enum> = true;
-//!\endcond
-
-} // namespace seqan3
+/*!\addtogroup search
+ * \{
+ */
 
 namespace seqan3::detail
 {
-/*!\brief A configuration element for the maximum number of errors.
- * \ingroup configuration
+/*!\brief Configuration element to specify the return type of the hits as positions in the indexed text.
+ * \ingroup search_configuration
  */
-struct search_config_error_type
+struct search_config_return_text_position
 {
-    //!\brief The actual value.
-    seqan3::search_cfg::error_type_enum value;
+    //!\cond
+    bool value{true};
+    //!\endcond
 };
 
-/*!\brief The error_type adaptor enabling pipe notation.
- * \ingroup configuration
+/*!\brief The seqan3::search_cfg::return_text_position adaptor enabling pipe notation.
+ * \ingroup search_configuration
  */
-struct search_config_error_type_adaptor : public configuration_fn_base<search_config_error_type_adaptor>
+struct search_config_return_text_position_adaptor : public configuration_fn_base<search_config_return_text_position_adaptor>
 {
 
-    /*!\brief Adds to the configuration a error_type configuration element.
-     * \param[in] cfg  The configuration to be extended.
-     * \param[in] nbr The number of maximum errors used to for the algorithm. (TODO: mximum vs maximal?)
-     * \returns A new configuration containing the error_type configuration element.
+    /*!\brief Adds to the configuration the seqan3::search_cfg::return_text_position configuration element.
+     * \param[in] cfg The configuration to be extended.
+     * \returns A new configuration containing the seqan3::search_cfg::return_text_position configuration element.
      */
     template <typename configuration_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg, seqan3::search_cfg::error_type_enum const nbr) const
+    constexpr auto invoke(configuration_t && cfg) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::error_type, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::error_type));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::return_text_position, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::return_text_position));
 
-        search_config_error_type tmp{nbr};
-        return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
+        return std::forward<configuration_t>(cfg).push_front(search_config_return_text_position{});
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_error_type.
-//!\ingroup configuration
+//!\brief Helper template meta-function associated with detail::search_config_return_text_position.
+//!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::error_type>
+struct on_search_config<search_cfg::id::return_text_position>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_error_type>::type;
+    using invoke = typename std::is_same<t, search_config_return_text_position>::type;
 };
 
-//!\brief Mapping from the detail::search_config_error_type type to it's corresponding seqan3::search_cfg::id.
-//!\ingroup configuration
+//!\brief Mapping from the detail::search_config_return_text_position type to it's corresponding seqan3::search_cfg::id.
+//!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_error_type>
+struct search_config_type_to_id<search_config_return_text_position>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::error_type;
+    static constexpr search_cfg::id value = search_cfg::id::return_text_position;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-
-/*!\brief A configuration adaptor for linear error_type.
- * \ingroup configuration
+/*!\brief Configuration element to specify the return type of the hits as positions in the indexed text.
+ * \ingroup search_configuration
  */
-inline constexpr detail::search_config_error_type_adaptor error_type;
+inline constexpr detail::search_config_return_text_position_adaptor return_text_position;
 
-// inline constexpr detail::search_config_gap_adaptor<seqan3::gap_affine> gap_affine;
 } // namespace seqan3::search_cfg
+
+//!\}

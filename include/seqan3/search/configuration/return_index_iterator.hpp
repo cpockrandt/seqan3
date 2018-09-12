@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides search strategy seqan3::search_cfg::strategy_best configuration.
+ * \brief Provides the configuration for returning FM index iterators.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -50,25 +50,26 @@
 
 namespace seqan3::detail
 {
-/*!\brief Configuration element to receive only the best hit.
- * \ingroup configuration
+/*!\brief Configuration element to specify the return type of the hits as FM index iterators.
+ *        The iterator type will be the default iterator type of the index, i.e. index_t::iterator_type
+ * \ingroup search_configuration
  */
-struct search_config_strategy_best
+struct search_config_return_index_iterator
 {
     //!\cond
     bool value{true};
     //!\endcond
 };
 
-/*!\brief The seqan3::search_cfg::strategy_best adaptor enabling pipe notation.
- * \ingroup configuration
+/*!\brief The seqan3::search_cfg::return_index_iterator adaptor enabling pipe notation.
+ * \ingroup search_configuration
  */
-struct search_config_strategy_best_adaptor : public configuration_fn_base<search_config_strategy_best_adaptor>
+struct search_config_return_index_iterator_adaptor : public configuration_fn_base<search_config_return_index_iterator_adaptor>
 {
 
-    /*!\brief Adds to the configuration the seqan3::search_cfg::strategy_best configuration element.
+    /*!\brief Adds to the configuration the seqan3::search_cfg::return_index_iterator configuration element.
      * \param[in] cfg The configuration to be extended.
-     * \returns A new configuration containing the seqan3::search_cfg::strategy_best configuration element.
+     * \returns A new configuration containing the seqan3::search_cfg::return_index_iterator configuration element.
      */
     template <typename configuration_t>
     //!\cond
@@ -76,39 +77,41 @@ struct search_config_strategy_best_adaptor : public configuration_fn_base<search
     //!\endcond
     constexpr auto invoke(configuration_t && cfg) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::strategy_best, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::strategy_best));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::return_index_iterator, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::return_index_iterator));
 
-        return std::forward<configuration_t>(cfg).push_front(search_config_strategy_best{});
+        return std::forward<configuration_t>(cfg).push_front(search_config_return_index_iterator{});
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_strategy_best.
-//!\ingroup configuration
+//!\brief Helper template meta-function associated with detail::search_config_return_index_iterator.
+//!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::strategy_best>
+struct on_search_config<search_cfg::id::return_index_iterator>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_strategy_best>::type;
+    using invoke = typename std::is_same<t, search_config_return_index_iterator>::type;
 };
 
-//!\brief Mapping from the detail::search_config_strategy_best type to it's corresponding seqan3::search_cfg::id.
-//!\ingroup configuration
+//!\brief Mapping from the detail::search_config_return_index_iterator type to it's corresponding seqan3::search_cfg::id.
+//!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_strategy_best>
+struct search_config_type_to_id<search_config_return_index_iterator>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::strategy_best;
+    static constexpr search_cfg::id value = search_cfg::id::return_index_iterator;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief The seqan3::search_cfg::strategy_best adaptor enabling pipe notation.
- * \ingroup configuration
+/*!\brief Configuration element to specify the return type of the hits as FM index iterators.
+ *        The iterator type will be the default iterator type of the index, i.e. index_t::iterator_type
+ * \ingroup search_configuration
  */
-inline constexpr detail::search_config_strategy_best_adaptor strategy_best;
+inline constexpr detail::search_config_return_index_iterator_adaptor return_index_iterator;
+
 } // namespace seqan3::search_cfg
 
 //!\}

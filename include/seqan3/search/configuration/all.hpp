@@ -33,28 +33,34 @@
 // ============================================================================
 
  /*!\file
-  * \brief Meta-header for the \link configuration search configuration module \endlink.
+  * \brief Meta-header for the \link search_configuration search configuration module \endlink.
   * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
   */
 
  #pragma once
 
-/*!\defgroup configuration Configuration
+/*!\defgroup search_configuration Configuration
  * \brief Data structures and utility functions for configuring search algorithm.
  * \ingroup search
  *
  * \todo Write detailed landing page.
  */
 
-#include <seqan3/search/configuration/search_config_max_error.hpp>
-#include <seqan3/search/configuration/search_config_max_error_rate.hpp>
-#include <seqan3/search/configuration/search_config_error_type.hpp>
-#include <seqan3/search/configuration/search_config_return_type.hpp>
-#include <seqan3/search/configuration/search_config_strategy_all.hpp>
-#include <seqan3/search/configuration/search_config_strategy_all_best.hpp>
-#include <seqan3/search/configuration/search_config_strategy_best.hpp>
-#include <seqan3/search/configuration/search_config_strategy_strata.hpp>
-#include <seqan3/search/configuration/search_config_on_hit.hpp>
+#include <seqan3/search/configuration/max_deletion_error_rate.hpp>
+#include <seqan3/search/configuration/max_deletion_error.hpp>
+#include <seqan3/search/configuration/max_insertion_error_rate.hpp>
+#include <seqan3/search/configuration/max_insertion_error.hpp>
+#include <seqan3/search/configuration/max_substitution_error_rate.hpp>
+#include <seqan3/search/configuration/max_substitution_error.hpp>
+#include <seqan3/search/configuration/max_total_error_rate.hpp>
+#include <seqan3/search/configuration/max_total_error.hpp>
+#include <seqan3/search/configuration/on_hit.hpp>
+#include <seqan3/search/configuration/return_index_iterator.hpp>
+#include <seqan3/search/configuration/return_text_position.hpp>
+#include <seqan3/search/configuration/strategy_all_best.hpp>
+#include <seqan3/search/configuration/strategy_all.hpp>
+#include <seqan3/search/configuration/strategy_best.hpp>
+#include <seqan3/search/configuration/strategy_strata.hpp>
 #include <seqan3/search/configuration/utility.hpp>
 
 /*!\namespace seqan3::search_cfg
