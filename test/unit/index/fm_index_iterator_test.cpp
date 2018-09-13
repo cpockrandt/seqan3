@@ -146,11 +146,9 @@ TYPED_TEST(fm_index_iterator_test, extend_right_range)
     EXPECT_FALSE(it.extend_right("A"_dna4));
     EXPECT_EQ(it, it_cpy);
 
-    // extend_right(range) does not take an empty range
+    // extend_right(empty range)
     it_cpy = it;
-#ifndef NDEBUG
-    EXPECT_DEATH(it.extend_right(""_dna4), "");
-#endif
+    EXPECT_TRUE(it.extend_right(""_dna4));
     EXPECT_EQ(it, it_cpy);
 }
 

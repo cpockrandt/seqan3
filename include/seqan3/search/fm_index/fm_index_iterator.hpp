@@ -128,26 +128,24 @@ protected:
 
     //!\brief Optimized backward search without alphabet mapping
     template <detail::sdsl_index_concept csa_t>
-    bool backward_search(csa_t const & csa, size_type const l, size_type const r, sdsl_char_type const c,
-                         size_type & l_res, size_type & r_res) const noexcept
+    bool backward_search(csa_t const & csa, sdsl_char_type const c, size_type & l, size_type & r) const noexcept
     {
         assert(l <= r && r < csa.size());
 
+        size_type _l, _r;
         if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
             size_type const c_begin = csa.C[c];
             if (r + 1 - l == csa.size()) // [[unlikely]]
             {
-                l_res = c_begin;
-                r_res = csa.C[c + 1] - 1;
+                _l = c_begin;
+                _r = csa.C[c + 1] - 1;
             }
             else
             {
-                l_res = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
-                r_res = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
+                _l = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
+                _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
             }
-            assert(r_res + 1 - l_res >= 0);
-            return r_res >= l_res;
         }
         else
         {
@@ -158,18 +156,24 @@ protected:
             size_type const c_begin = csa.C[cc];
             if (l == 0 && r + 1 == csa.size()) // [[unlikely]]
             {
-                l_res = c_begin;
-                r_res = csa.C[cc + 1] - 1;
+                l = c_begin;
+                r = csa.C[cc + 1] - 1;
                 return true;
             }
             else
             {
-                l_res = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
-                r_res = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
-                assert(r_res + 1 - l_res >= 0);
-                return r_res >= l_res;
+                _l = c_begin + csa.bwt.rank(l, c);		   // count c in bwt[0..l-1]
+                _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
             }
         }
+        assert(_r + 1 - _l >= 0);
+        if (_r >= _l)
+        {
+            r = _r;
+            l = _l;
+            return true;
+        }
+        return false;
     }
 
 public:
@@ -205,8 +209,7 @@ public:
     bool operator==(fm_index_iterator const & rhs) const noexcept
     {
         assert(index != nullptr);
-        assert(node != rhs.node ||
-            (query_length() == 0 || (parent_lb == rhs.parent_lb && parent_rb == rhs.parent_rb)));
+        assert(node != rhs.node || (query_length() == 0 || (parent_lb == rhs.parent_lb && parent_rb == rhs.parent_rb)));
 
         // position in the implicit suffix tree is defined by the SA interval and depth.
         // No need to compare parent intervals
@@ -256,9 +259,8 @@ public:
         assert(index != nullptr);
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        size_type _lb, _rb;
-        while (c < index->m_index.sigma &&
-               !backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
+        size_type _lb = node.lb, _rb = node.rb;
+        while (c < index->m_index.sigma && !backward_search(index->m_index, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
@@ -295,11 +297,11 @@ public:
     {
         assert(index != nullptr);
 
-        size_type _lb, _rb;
+        size_type _lb = node.lb, _rb = node.rb;
 
         sdsl_char_type c_char = to_rank(c) + 1;
 
-        if (backward_search(index->m_index, node.lb, node.rb, c_char, _lb, _rb))
+        if (backward_search(index->m_index, c_char, _lb, _rb))
         {
             parent_lb = node.lb;
             parent_rb = node.rb;
@@ -335,10 +337,10 @@ public:
         auto first = seq.begin();
         auto last = seq.end();
 
-        assert(index != nullptr && first != last); // range must not be empty!
+        assert(index != nullptr); // range must not be empty!
 
         size_type _lb = node.lb, _rb = node.rb;
-        size_type _parent_lb = node.lb, _parent_rb = node.rb;
+        size_type new_parent_lb = parent_lb, new_parent_rb = parent_rb;
 
         sdsl_char_type c;
 
@@ -346,14 +348,14 @@ public:
         {
             c = to_rank(*it) + 1;
 
-            _parent_lb = _lb;
-            _parent_rb = _rb;
-            if (!backward_search(index->m_index, _parent_lb, _parent_rb, c, _lb, _rb))
+            new_parent_lb = _lb;
+            new_parent_rb = _rb;
+            if (!backward_search(index->m_index, c, _lb, _rb))
                 return false;
         }
 
-        parent_lb = _parent_lb;
-        parent_rb = _parent_rb;
+        parent_lb = new_parent_lb;
+        parent_rb = new_parent_rb;
         node = {_lb, _rb, last - first + node.depth, c};
         return true;
     }
@@ -390,10 +392,9 @@ public:
         assert(index != nullptr && query_length() > 0 && parent_lb <= parent_rb);
 
         sdsl_char_type c = node.last_char + 1;
-        size_type _lb, _rb;
+        size_type _lb = parent_lb, _rb = parent_rb;
 
-        while (c < index->m_index.sigma &&
-               !backward_search(index->m_index, parent_lb, parent_rb, index->m_index.comp2char[c], _lb, _rb))
+        while (c < index->m_index.sigma && !backward_search(index->m_index, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }

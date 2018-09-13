@@ -162,26 +162,24 @@ protected:
 
     //!\brief Optimized bidirectional search without alphabet mapping
     template <detail::sdsl_index_concept csa_t>
-    bool bidirectional_search(csa_t const & csa,
-                              size_type const l_fwd, size_type const r_fwd,
-                              size_type const l_bwd, size_type const r_bwd,
-                              sdsl_char_type const c,
-                              size_type & l_fwd_res, size_type & r_fwd_res,
-                              size_type & l_bwd_res, size_type & r_bwd_res) const noexcept
+    bool bidirectional_search(csa_t const & csa, sdsl_char_type const c,
+                              size_type & l_fwd, size_type & r_fwd,
+                              size_type & l_bwd, size_type & r_bwd) const noexcept
     {
         assert(l_fwd <= r_fwd && r_fwd < csa.size());
         assert(r_fwd + 1 >= l_fwd && r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
 
+        size_type _l_fwd, _r_fwd, _l_bwd, _r_bwd;
         if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
             size_type const c_begin = csa.C[c];
 
             if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
             {
-                l_fwd_res = c_begin;
-                l_bwd_res = c_begin;
-                r_fwd_res = csa.C[c + 1] - 1;
-                r_bwd_res = r_fwd_res;
+                _l_fwd = c_begin;
+                _l_bwd = c_begin;
+                _r_fwd = csa.C[c + 1] - 1;
+                _r_bwd = _r_fwd;
             }
             else
             {
@@ -189,27 +187,25 @@ protected:
                 size_type const rank_l = std::get<0>(r_s_b);
                 size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
                 size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-                l_fwd_res = c_begin + rank_l;
-                r_fwd_res = c_begin + rank_r;
-                l_bwd_res = l_bwd + s;
-                r_bwd_res = r_bwd - b;
+                _l_fwd = c_begin + rank_l;
+                _r_fwd = c_begin + rank_r;
+                _l_bwd = l_bwd + s;
+                _r_bwd = r_bwd - b;
             }
         }
         else
         {
             size_type const cc = csa.char2comp[c];
             if (cc == 0 && c > 0) // [[unlikely]]
-            {
                 return false;
-            }
 
             size_type const c_begin = csa.C[cc];
             if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
             {
-                l_fwd_res = c_begin;
-                l_bwd_res = c_begin;
-                r_fwd_res = csa.C[cc + 1] - 1;
-                r_bwd_res = r_fwd_res;
+                l_fwd = c_begin;
+                l_bwd = c_begin;
+                r_fwd = csa.C[cc + 1] - 1;
+                r_bwd = r_fwd;
                 return true;
             }
             else
@@ -218,57 +214,60 @@ protected:
                 size_type const rank_l = std::get<0>(r_s_b);
                 size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
                 size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-                l_fwd_res = c_begin + rank_l;
-                r_fwd_res = c_begin + rank_r;
-                l_bwd_res = l_bwd + s;
-                r_bwd_res = r_bwd - b;
+                _l_fwd = c_begin + rank_l;
+                _r_fwd = c_begin + rank_r;
+                _l_bwd = l_bwd + s;
+                _r_bwd = r_bwd - b;
             }
         }
-        assert(r_fwd_res + 1 >= l_fwd_res && r_bwd_res + 1 - l_bwd_res == r_fwd_res + 1 - l_fwd_res);
-        return r_fwd_res >= l_fwd_res;
+        assert(_r_fwd + 1 >= _l_fwd && _r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd);
+        if (_r_fwd >= _l_fwd)
+        {
+            l_fwd = _l_fwd;
+            r_fwd = _r_fwd;
+            l_bwd = _l_bwd;
+            r_bwd = _r_bwd;
+            return true;
+        }
+        return false;
     }
 
     //!\brief Optimized bidirectional search for cycle_back() and cycle_front() without alphabet mapping
     template <detail::sdsl_index_concept csa_t>
-    bool bidirectional_search_cycle(csa_t const & csa,
-                                    size_type const l_fwd, size_type const r_fwd,
-                                    size_type const l_bwd, size_type const r_bwd,
-                                    sdsl_char_type const c,
-                                    size_type & l_fwd_res, size_type & r_fwd_res,
-                                    size_type & l_bwd_res, size_type & r_bwd_res) const noexcept
+    bool bidirectional_search_cycle(csa_t const & csa, sdsl_char_type const c,
+                                    size_type const l_parent, size_type const r_parent,
+                                    size_type & l_fwd, size_type & r_fwd,
+                                    size_type & l_bwd, size_type & r_bwd) const noexcept
     {
-        assert(l_fwd <= r_fwd && r_fwd < csa.size());
+        assert(l_parent <= r_parent && r_parent < csa.size());
 
+        size_type c_begin;
         if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
-        {
-            size_type const c_begin = csa.C[c];
-            auto const r_s_b = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
-            size_type const rank_l  = std::get<0>(r_s_b);
-            size_type const s = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
-            size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-            l_fwd_res = c_begin + rank_l;
-            r_fwd_res = c_begin + rank_r;
-            l_bwd_res = r_bwd + 1;
-            r_bwd_res = r_bwd + 1 + rank_r - rank_l; // TODO: check maybe +1/-1 missing
-
-            assert(r_fwd_res + 1 >= l_fwd_res && r_bwd_res + 1 - l_bwd_res == r_fwd_res + 1 - l_fwd_res);
-            return r_fwd_res >= l_fwd_res; // r_fwd_res + 1 - l_fwd_res
-        }
+            c_begin = csa.C[c]; // TODO: check whether this can be removed
         else
-        {
-            size_type const c_begin = csa.C[csa.char2comp[c]];
-            auto const r_s_b = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
-            size_type const rank_l  = std::get<0>(r_s_b);
-            size_type const s = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
-            size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-            l_fwd_res = c_begin + rank_l;
-            r_fwd_res = c_begin + rank_r;
-            l_bwd_res = r_bwd + 1;
-            r_bwd_res = r_bwd + 1 + rank_r - rank_l; // TODO: check maybe +1/-1 missing
+            c_begin = csa.C[csa.char2comp[c]];
 
-            assert(r_fwd_res + 1 >= l_fwd_res && r_bwd_res + 1 - l_bwd_res == r_fwd_res + 1 - l_fwd_res);
-            return r_fwd_res >= l_fwd_res; // r_fwd_res + 1 - l_fwd_res
+        auto const r_s_b = csa.wavelet_tree.lex_count(l_parent, r_parent + 1, c);
+        size_type const s      = std::get<1>(r_s_b),
+                        b      = std::get<2>(r_s_b),
+                        rank_l = std::get<0>(r_s_b),
+                        rank_r = r_parent - l_parent - s - b + rank_l;
+
+        size_type const _l_fwd = c_begin + rank_l;
+        size_type const _r_fwd = c_begin + rank_r;
+        size_type const _l_bwd = r_bwd + 1;
+        size_type const _r_bwd = r_bwd + 1 + rank_r - rank_l;
+
+        assert(_r_fwd + 1 >= _l_fwd && _r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd);
+        if (_r_fwd >= _l_fwd)
+        {
+            l_fwd = _l_fwd;
+            r_fwd = _r_fwd;
+            l_bwd = _l_bwd;
+            r_bwd = _r_bwd;
+            return true;
         }
+        return false;
     }
 
 public:
@@ -358,24 +357,20 @@ public:
 
         assert(index != nullptr);
 
+        size_type new_parent_lb = fwd_lb, new_parent_rb = fwd_rb;
+
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
         while (c < index->fwd_fm.m_index.sigma &&
-               !bidirectional_search(index->fwd_fm.m_index, fwd_lb, fwd_rb, rev_lb, rev_rb,
-                                     index->fwd_fm.m_index.comp2char[c], _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
+               !bidirectional_search(index->fwd_fm.m_index, index->fwd_fm.m_index.comp2char[c],
+                                     fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
             ++c;
         }
 
         if (c != index->fwd_fm.m_index.sigma)
         {
-            parent_lb = fwd_lb;
-            parent_rb = fwd_rb;
-
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
+            parent_lb = new_parent_lb;
+            parent_rb = new_parent_rb;
 
             _last_char = c;
             ++depth;
@@ -410,24 +405,20 @@ public:
 
         assert(index != nullptr);
 
+        size_type new_parent_lb = rev_lb, new_parent_rb = rev_rb;
+
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
         while (c < index->rev_fm.m_index.sigma &&
-               !bidirectional_search(index->rev_fm.m_index, rev_lb, rev_rb, fwd_lb, fwd_rb,
-                                     index->rev_fm.m_index.comp2char[c], _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
+               !bidirectional_search(index->rev_fm.m_index, index->rev_fm.m_index.comp2char[c],
+                                     rev_lb, rev_rb, fwd_lb, fwd_rb))
         {
             ++c;
         }
 
         if (c != index->rev_fm.m_index.sigma)
         {
-            parent_lb = rev_lb;
-            parent_rb = rev_rb;
-
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
+            parent_lb = new_parent_lb;
+            parent_rb = new_parent_rb;
 
             _last_char = c;
             ++depth;
@@ -463,20 +454,13 @@ public:
 
         assert(index != nullptr);
 
-        size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
+        size_type new_parent_lb = fwd_lb, new_parent_rb = fwd_rb;
 
         auto c_char = to_rank(c) + 1;
-
-        if (bidirectional_search(index->fwd_fm.m_index, fwd_lb, fwd_rb, rev_lb, rev_rb,
-                                 c_char, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
+        if (bidirectional_search(index->fwd_fm.m_index, c_char, fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
-            parent_lb = fwd_lb;
-            parent_rb = fwd_rb;
-
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
+            parent_lb = new_parent_lb;
+            parent_rb = new_parent_rb;
 
             _last_char = c_char;
             ++depth;
@@ -512,20 +496,13 @@ public:
 
        assert(index != nullptr);
 
-       size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
+       size_type new_parent_lb = rev_lb, new_parent_rb = rev_rb;
 
        auto c_char = to_rank(c) + 1;
-
-       if (bidirectional_search(index->rev_fm.m_index, rev_lb, rev_rb, fwd_lb, fwd_rb,
-                                c_char, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
+       if (bidirectional_search(index->rev_fm.m_index, c_char, rev_lb, rev_rb, fwd_lb, fwd_rb))
        {
-            parent_lb = rev_lb;
-            parent_rb = rev_rb;
-
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
+            parent_lb = new_parent_lb;
+            parent_rb = new_parent_rb;
 
             _last_char = c_char;
             ++depth;
@@ -558,28 +535,26 @@ public:
     //!\endcond
     bool extend_right(query_t && seq) noexcept
     {
-    #ifndef NDEBUG
-        fwd_iter_last_used = true;
-    #endif
+        assert(index != nullptr);
 
         auto first = seq.begin();
         auto last = seq.end();
 
-        assert(index != nullptr && first != last); // range must not be empty!
+    #ifndef NDEBUG
+        fwd_iter_last_used = (first != last); // only if seq was not empty
+    #endif
 
         size_type _fwd_lb = fwd_lb, _fwd_rb = fwd_rb, _rev_lb = rev_lb, _rev_rb = rev_rb;
-        size_type _parent_lb, _parent_rb;
-
-        sdsl_char_type c;
+        size_type new_parent_lb = parent_lb, new_parent_rb = parent_rb;
+        sdsl_char_type c = _last_char;
 
         for (auto it = first; it != last; ++it)
         {
             c = to_rank(*it) + 1;
 
-            _parent_lb = _fwd_lb;
-            _parent_rb = _fwd_rb;
-            if (!bidirectional_search(index->fwd_fm.m_index, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb,
-                                      c, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
+            new_parent_lb = _fwd_lb;
+            new_parent_rb = _fwd_rb;
+            if (!bidirectional_search(index->fwd_fm.m_index, c, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
                 return false;
         }
 
@@ -588,8 +563,9 @@ public:
         rev_lb = _rev_lb;
         rev_rb = _rev_rb;
 
-        parent_lb = _parent_lb;
-        parent_rb = _parent_rb;
+        parent_lb = new_parent_lb;
+        parent_rb = new_parent_rb;
+
         _last_char = c;
         depth += last - first;
 
@@ -619,31 +595,30 @@ public:
     //!\endcond
     bool extend_left(query_t && seq) noexcept
     {
-    #ifndef NDEBUG
-        fwd_iter_last_used = false;
-    #endif
+        assert(index != nullptr);
 
         auto rev_seq = view::reverse(seq);
         auto first = rev_seq.begin();
         auto last = rev_seq.end();
 
-        assert(index != nullptr && first != last); // range must not be empty!
+    #ifndef NDEBUG
+        if (first != last) // only if seq was not empty
+            fwd_iter_last_used = false;
+    #endif
 
-        size_type _fwd_lb = fwd_lb, _fwd_rb = fwd_rb, _rev_lb = rev_lb, _rev_rb = rev_rb;
-        size_type _parent_lb, _parent_rb;
+        size_type _fwd_lb = fwd_lb, _fwd_rb = fwd_rb,
+                  _rev_lb = rev_lb, _rev_rb = rev_rb;
+        size_type new_parent_lb = parent_lb, new_parent_rb = parent_rb;
+        sdsl_char_type c = _last_char;
 
-        sdsl_char_type c;
-
-        // TODO(h-2, eseiler and cpockrandt): should we iterate from left to right or right to left?
         for (auto it = first; it != last; ++it)
         {
             c = to_rank(*it) + 1;
 
-            _parent_lb = _rev_lb;
-            _parent_rb = _rev_rb;
-            if (!bidirectional_search(index->rev_fm.m_index, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb,
-                                      c, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
-            return false;
+            new_parent_lb = _rev_lb;
+            new_parent_rb = _rev_rb;
+            if (!bidirectional_search(index->rev_fm.m_index, c, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
+                return false;
         }
 
         fwd_lb = _fwd_lb;
@@ -651,8 +626,8 @@ public:
         rev_lb = _rev_lb;
         rev_rb = _rev_rb;
 
-        parent_lb = _parent_lb;
-        parent_rb = _parent_rb;
+        parent_lb = new_parent_lb;
+        parent_rb = new_parent_rb;
         _last_char = c;
         depth += last - first;
 
@@ -695,22 +670,16 @@ public:
         assert(index != nullptr && query_length() > 0);
 
         sdsl_char_type c = _last_char + 1;
-        size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
 
-        while (c < index->fwd_fm.m_index.sigma && !bidirectional_search_cycle(index->fwd_fm.m_index,
-                   parent_lb, parent_rb, rev_lb, rev_rb, index->fwd_fm.m_index.comp2char[c],
-                   _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
+        while (c < index->fwd_fm.m_index.sigma &&
+               !bidirectional_search_cycle(index->fwd_fm.m_index, index->fwd_fm.m_index.comp2char[c],
+                                           parent_lb, parent_rb, fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
             ++c;
         }
 
         if (c != index->fwd_fm.m_index.sigma)
         {
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
-
             _last_char = c;
 
             return true;
@@ -754,22 +723,15 @@ public:
         assert(index != nullptr && query_length() > 0);
 
         sdsl_char_type c = _last_char + 1;
-        size_type _fwd_lb, _fwd_rb, _rev_lb, _rev_rb;
-
-        while (c < index->rev_fm.m_index.sigma && !bidirectional_search_cycle(index->rev_fm.m_index,
-                   parent_lb, parent_rb, fwd_lb, fwd_rb, index->rev_fm.m_index.comp2char[c],
-                   _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
+        while (c < index->rev_fm.m_index.sigma &&
+               !bidirectional_search_cycle(index->rev_fm.m_index, index->rev_fm.m_index.comp2char[c],
+                                           parent_lb, parent_rb, rev_lb, rev_rb, fwd_lb, fwd_rb))
         {
             ++c;
         }
 
         if (c != index->rev_fm.m_index.sigma)
         {
-            fwd_lb = _fwd_lb;
-            fwd_rb = _fwd_rb;
-            rev_lb = _rev_lb;
-            rev_rb = _rev_rb;
-
             _last_char = c;
 
             return true;
