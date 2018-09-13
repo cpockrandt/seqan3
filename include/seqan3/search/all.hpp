@@ -52,7 +52,7 @@
   * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
   * with arbitrary pattern lengths and error numbers / positions.
   *
-  * SeqAn3 currently supports only very fast FM indices. For more details visit the \ref submodule_fm_index
+  * SeqAn3 currently supports very fast FM indices. For more details visit the \ref submodule_fm_index
   * "FM index submodule".
   *
   * \todo k-mer indices are coming soon. Stay tuned!

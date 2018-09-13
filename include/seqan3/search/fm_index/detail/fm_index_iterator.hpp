@@ -70,13 +70,13 @@ struct fm_index_iterator_node
     size_type rb;
     //!\brief Depth of the node in the suffix tree, i.e. length of the searched query.
     size_type depth;
-    //!\brief Label of the last edge moved down. Needed for cycle_right().
+    //!\brief Label of the last edge moved down. Needed for cycle_back().
     sdsl_char_type last_char;
 
     //!\brief Comparison of two iterator nodes.
     bool operator==(fm_index_iterator_node const & rhs) const
     {
-        // NOTE: last_char is implementation specific for cycle_right().
+        // NOTE: last_char is implementation specific for cycle_back().
         // lb, rb and depth already determine the node in the suffix tree.
         // Thus there is no need to compare last_char.
         return std::tie(lb, rb, depth) == std::tie(rhs.lb, rhs.rb, rhs.depth);

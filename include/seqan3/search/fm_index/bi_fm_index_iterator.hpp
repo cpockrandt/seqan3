@@ -85,14 +85,19 @@ class bi_fm_index_iterator
 
 public:
 
-    /*!\name Member types
-     * \{
-     */
     //!\brief Type of the index.
     using index_type = index_t;
+
+    /*!\name Text types
+     * \{
+     */
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename index_type::size_type;
+    //!\}
 
+    /*!\name Iterator types
+     * \{
+     */
     //!\brief Type for the unidirectional iterator on the original text.
     using fwd_iterator = fm_index_iterator<fm_index<typename index_type::text_type, typename index_type::index_traits::fm_index_traits>>;
     //!\brief Type for the unidirectional iterator on the reversed text.
@@ -102,12 +107,8 @@ public:
 protected:
     //!\privatesection
 
-    /*!\name Member types
-     * \{
-     */
     //!\brief Type of the representation of characters in the underlying SDSL index.
     using sdsl_char_type = typename index_type::sdsl_char_type;
-    //!\}
 
     //!\brief Type of the underlying FM index.
     index_type const * index;
@@ -131,7 +132,7 @@ protected:
      * \{
      */
 
-    // m_parent_* and _last_char only have to be stored for the (unidirectional) iterator that has been used last for
+    // parent_* and _last_char only have to be stored for the (unidirectional) iterator that has been used last for
     // extend_right() or cycle_back() resp. extend_left() or cycle_front(), (i.e. either fwd or rev). Thus there is no
     // need to store it twice. Once the iterator is switched, the information becomes invalid anyway.
 
@@ -166,61 +167,41 @@ protected:
                               size_type & l_fwd, size_type & r_fwd,
                               size_type & l_bwd, size_type & r_bwd) const noexcept
     {
-        assert(l_fwd <= r_fwd && r_fwd < csa.size());
-        assert(r_fwd + 1 >= l_fwd && r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
+        assert((l_fwd <= r_fwd) && (r_fwd < csa.size()));
+        assert((r_fwd + 1 >= l_fwd) && (r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd));
 
         size_type _l_fwd, _r_fwd, _l_bwd, _r_bwd;
-        if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
-        {
-            size_type const c_begin = csa.C[c];
 
-            if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
-            {
-                _l_fwd = c_begin;
-                _l_bwd = c_begin;
-                _r_fwd = csa.C[c + 1] - 1;
-                _r_bwd = _r_fwd;
-            }
-            else
-            {
-                auto      const r_s_b  = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
-                size_type const rank_l = std::get<0>(r_s_b);
-                size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
-                size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-                _l_fwd = c_begin + rank_l;
-                _r_fwd = c_begin + rank_r;
-                _l_bwd = l_bwd + s;
-                _r_bwd = r_bwd - b;
-            }
+        size_type cc = c;
+        if constexpr(!std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+        {
+            cc = csa.char2comp[c];
+            if (cc == 0 && c > 0) // [[unlikely]]
+                return false;
+        }
+
+        size_type const c_begin = csa.C[cc];
+        if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
+        {
+            _l_fwd = c_begin;
+            _l_bwd = c_begin;
+            _r_fwd = csa.C[cc + 1] - 1;
+            _r_bwd = r_fwd;
+            // if we use not the plain_byte_alphabet, we could return always return true here
         }
         else
         {
-            size_type const cc = csa.char2comp[c];
-            if (cc == 0 && c > 0) // [[unlikely]]
-                return false;
-
-            size_type const c_begin = csa.C[cc];
-            if (r_fwd + 1 - l_fwd == csa.size()) // [[unlikely]]
-            {
-                l_fwd = c_begin;
-                l_bwd = c_begin;
-                r_fwd = csa.C[cc + 1] - 1;
-                r_bwd = r_fwd;
-                return true;
-            }
-            else
-            {
-                auto      const r_s_b  = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
-                size_type const rank_l = std::get<0>(r_s_b);
-                size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
-                size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
-                _l_fwd = c_begin + rank_l;
-                _r_fwd = c_begin + rank_r;
-                _l_bwd = l_bwd + s;
-                _r_bwd = r_bwd - b;
-            }
+            auto      const r_s_b  = csa.wavelet_tree.lex_count(l_fwd, r_fwd + 1, c);
+            size_type const rank_l = std::get<0>(r_s_b);
+            size_type const s      = std::get<1>(r_s_b), b = std::get<2>(r_s_b);
+            size_type const rank_r = r_fwd - l_fwd - s - b + rank_l;
+            _l_fwd = c_begin + rank_l;
+            _r_fwd = c_begin + rank_r;
+            _l_bwd = l_bwd + s;
+            _r_bwd = r_bwd - b;
         }
-        assert(_r_fwd + 1 >= _l_fwd && _r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd);
+
+        assert((_r_fwd + 1 >= _l_fwd) && (_r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd));
         if (_r_fwd >= _l_fwd)
         {
             l_fwd = _l_fwd;
@@ -239,7 +220,7 @@ protected:
                                     size_type & l_fwd, size_type & r_fwd,
                                     size_type & l_bwd, size_type & r_bwd) const noexcept
     {
-        assert(l_parent <= r_parent && r_parent < csa.size());
+        assert((l_parent <= r_parent) && (r_parent < csa.size()));
 
         size_type c_begin;
         if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
@@ -258,7 +239,7 @@ protected:
         size_type const _l_bwd = r_bwd + 1;
         size_type const _r_bwd = r_bwd + 1 + rank_r - rank_l;
 
-        assert(_r_fwd + 1 >= _l_fwd && _r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd);
+        assert((_r_fwd + 1 >= _l_fwd) && (_r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd));
         if (_r_fwd >= _l_fwd)
         {
             l_fwd = _l_fwd;
@@ -272,7 +253,7 @@ protected:
 
 public:
 
-    /*!\name Constructors and destructor
+    /*!\name Constructors, destructor and assignment
      * \{
      */
     //!\brief Default constructor. Accessing member functions on a default constructed object is undefined behavior.
@@ -360,14 +341,14 @@ public:
         size_type new_parent_lb = fwd_lb, new_parent_rb = fwd_rb;
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        while (c < index->fwd_fm.m_index.sigma &&
-               !bidirectional_search(index->fwd_fm.m_index, index->fwd_fm.m_index.comp2char[c],
+        while (c < index->fwd_fm.index.sigma &&
+               !bidirectional_search(index->fwd_fm.index, index->fwd_fm.index.comp2char[c],
                                      fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
             ++c;
         }
 
-        if (c != index->fwd_fm.m_index.sigma)
+        if (c != index->fwd_fm.index.sigma)
         {
             parent_lb = new_parent_lb;
             parent_rb = new_parent_rb;
@@ -408,14 +389,14 @@ public:
         size_type new_parent_lb = rev_lb, new_parent_rb = rev_rb;
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
-        while (c < index->rev_fm.m_index.sigma &&
-               !bidirectional_search(index->rev_fm.m_index, index->rev_fm.m_index.comp2char[c],
+        while (c < index->rev_fm.index.sigma &&
+               !bidirectional_search(index->rev_fm.index, index->rev_fm.index.comp2char[c],
                                      rev_lb, rev_rb, fwd_lb, fwd_rb))
         {
             ++c;
         }
 
-        if (c != index->rev_fm.m_index.sigma)
+        if (c != index->rev_fm.index.sigma)
         {
             parent_lb = new_parent_lb;
             parent_rb = new_parent_rb;
@@ -457,7 +438,7 @@ public:
         size_type new_parent_lb = fwd_lb, new_parent_rb = fwd_rb;
 
         auto c_char = to_rank(c) + 1;
-        if (bidirectional_search(index->fwd_fm.m_index, c_char, fwd_lb, fwd_rb, rev_lb, rev_rb))
+        if (bidirectional_search(index->fwd_fm.index, c_char, fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
             parent_lb = new_parent_lb;
             parent_rb = new_parent_rb;
@@ -494,13 +475,13 @@ public:
         fwd_iter_last_used = false;
     #endif
 
-       assert(index != nullptr);
+        assert(index != nullptr);
 
-       size_type new_parent_lb = rev_lb, new_parent_rb = rev_rb;
+        size_type new_parent_lb = rev_lb, new_parent_rb = rev_rb;
 
-       auto c_char = to_rank(c) + 1;
-       if (bidirectional_search(index->rev_fm.m_index, c_char, rev_lb, rev_rb, fwd_lb, fwd_rb))
-       {
+        auto c_char = to_rank(c) + 1;
+        if (bidirectional_search(index->rev_fm.index, c_char, rev_lb, rev_rb, fwd_lb, fwd_rb))
+        {
             parent_lb = new_parent_lb;
             parent_rb = new_parent_rb;
 
@@ -508,13 +489,12 @@ public:
             ++depth;
 
             return true;
-       }
-       return false;
+        }
+        return false;
     }
 
     /*!\brief Tries to extend the query by `seq` to the right.
-     * \tparam query_t Type of the character needs to be convertible to the character type `char_type` of the indexed
-     *                 text.
+     * \tparam seq_t The type of range of the sequence to search; must model std::ranges::RandomAccessRange.
      * \param[in] seq Sequence to extend the query with to the right.
      * \returns `true` if the iterator could extend the query successfully.
      *
@@ -529,11 +509,11 @@ public:
      *
      * No-throw guarantee.
      */
-    template <std::ranges::ForwardRange query_t>
+    template <std::ranges::RandomAccessRange seq_t>
     //!\cond
-        requires implicitly_convertible_to_concept<innermost_value_type_t<query_t>, typename index_t::char_type>
+        requires implicitly_convertible_to_concept<innermost_value_type_t<seq_t>, typename index_t::char_type>
     //!\endcond
-    bool extend_right(query_t && seq) noexcept
+    bool extend_right(seq_t && seq) noexcept
     {
         assert(index != nullptr);
 
@@ -554,7 +534,7 @@ public:
 
             new_parent_lb = _fwd_lb;
             new_parent_rb = _fwd_rb;
-            if (!bidirectional_search(index->fwd_fm.m_index, c, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
+            if (!bidirectional_search(index->fwd_fm.index, c, _fwd_lb, _fwd_rb, _rev_lb, _rev_rb))
                 return false;
         }
 
@@ -573,8 +553,7 @@ public:
     }
 
     /*!\brief Tries to extend the query by `seq` to the left.
-     * \tparam query_t Type of the character needs to be convertible to the character type `char_type` of the indexed
-     *                 text.
+     * \tparam seq_t The type of range of the sequence to search; must model std::ranges::RandomAccessRange.
      * \param[in] seq Sequence to extend the query with to the left (starting from right to left, see example).
      * \returns `true` if the iterator could extend the query successfully.
      *
@@ -583,7 +562,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp extend_left_seq
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp extend_left_seq
      *
      * ### Complexity
      *
@@ -593,11 +572,11 @@ public:
      *
      * No-throw guarantee.
      */
-    template <std::ranges::BidirectionalRange query_t>
+    template <std::ranges::RandomAccessRange seq_t>
     //!\cond
-       requires implicitly_convertible_to_concept<innermost_value_type_t<query_t>, typename index_t::char_type>
+       requires implicitly_convertible_to_concept<innermost_value_type_t<seq_t>, typename index_t::char_type>
     //!\endcond
-    bool extend_left(query_t && seq) noexcept
+    bool extend_left(seq_t && seq) noexcept
     {
         assert(index != nullptr);
 
@@ -621,7 +600,7 @@ public:
 
             new_parent_lb = _rev_lb;
             new_parent_rb = _rev_rb;
-            if (!bidirectional_search(index->rev_fm.m_index, c, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
+            if (!bidirectional_search(index->rev_fm.index, c, _rev_lb, _rev_rb, _fwd_lb, _fwd_rb))
                 return false;
         }
 
@@ -651,7 +630,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp cycle
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -675,14 +654,14 @@ public:
 
         sdsl_char_type c = _last_char + 1;
 
-        while (c < index->fwd_fm.m_index.sigma &&
-               !bidirectional_search_cycle(index->fwd_fm.m_index, index->fwd_fm.m_index.comp2char[c],
+        while (c < index->fwd_fm.index.sigma &&
+               !bidirectional_search_cycle(index->fwd_fm.index, index->fwd_fm.index.comp2char[c],
                                            parent_lb, parent_rb, fwd_lb, fwd_rb, rev_lb, rev_rb))
         {
             ++c;
         }
 
-        if (c != index->fwd_fm.m_index.sigma)
+        if (c != index->fwd_fm.index.sigma)
         {
             _last_char = c;
 
@@ -704,7 +683,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp cycle
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -727,14 +706,14 @@ public:
         assert(index != nullptr && query_length() > 0);
 
         sdsl_char_type c = _last_char + 1;
-        while (c < index->rev_fm.m_index.sigma &&
-               !bidirectional_search_cycle(index->rev_fm.m_index, index->rev_fm.m_index.comp2char[c],
+        while (c < index->rev_fm.index.sigma &&
+               !bidirectional_search_cycle(index->rev_fm.index, index->rev_fm.index.comp2char[c],
                                            parent_lb, parent_rb, rev_lb, rev_rb, fwd_lb, fwd_rb))
         {
             ++c;
         }
 
-        if (c != index->rev_fm.m_index.sigma)
+        if (c != index->rev_fm.index.sigma)
         {
             _last_char = c;
 
@@ -750,7 +729,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp cycle
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -765,7 +744,7 @@ public:
         assert(index != nullptr && query_length() > 0);
 
         typename index_t::char_type c;
-        c.assign_rank(index->fwd_fm.m_index.comp2char[_last_char] - 1); // text is not allowed to contain ranks of 0
+        assign_rank(c, index->fwd_fm.index.comp2char[_last_char] - 1); // text is not allowed to contain ranks of 0
         return c;
     }
 
@@ -803,7 +782,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp to_fwd_iterator
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp to_fwd_iterator
      *
      * ### Complexity
      *
@@ -845,7 +824,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/bi_fm_index_iterator.cpp to_rev_iterator
+     * \snippet test/snippet/search/bi_fm_index_iterator.cpp to_rev_iterator
      *
      * ### Complexity
      *
@@ -893,7 +872,7 @@ public:
     {
         assert(index != nullptr && index->text != nullptr);
 
-        size_type const query_begin = offset() - index->fwd_fm.m_index[fwd_lb];
+        size_type const query_begin = offset() - index->fwd_fm.index[fwd_lb];
         return *index->text | ranges::view::slice(query_begin, query_begin + query_length());
     }
 
@@ -918,7 +897,7 @@ public:
      */
     size_type count() const noexcept
     {
-        assert(index != nullptr && 1 + fwd_rb - fwd_lb == 1 + rev_rb - rev_lb);
+        assert(index != nullptr && (1 + fwd_rb - fwd_lb == 1 + rev_rb - rev_lb));
 
         return 1 + fwd_rb - fwd_lb;
     }
@@ -941,7 +920,7 @@ public:
         std::vector<size_type> occ(count());
         for (size_type i = 0; i < occ.size(); ++i)
         {
-            occ[i] = offset() - index->fwd_fm.m_index[fwd_lb + i];
+            occ[i] = offset() - index->fwd_fm.index[fwd_lb + i];
         }
         return occ;
     }
@@ -962,11 +941,10 @@ public:
     {
         assert(index != nullptr);
 
-        size_type const _offset = offset();
         return ranges::view::iota(fwd_lb, fwd_lb + count())
-             | view::transform([*this, _offset] (auto sa_pos)
+             | view::transform([*this, _offset = offset()] (auto sa_pos)
                {
-                   return _offset - index->fwd_fm.m_index[sa_pos];
+                   return _offset - index->fwd_fm.index[sa_pos];
                });
     }
 

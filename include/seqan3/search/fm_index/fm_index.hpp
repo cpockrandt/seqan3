@@ -114,7 +114,7 @@ struct fm_index_default_traits
  * Here is a short example on how to build an index and search a pattern using an iterator. Please note that there is a
  * very powerful search module with a high-level interface \todo seqan3::search that encapsulates the use of iterators.
  *
- * \snippet test/snippet/index/fm_index.cpp all
+ * \snippet test/snippet/search/fm_index.cpp all
  *
  * Here is an example using a collection of strings (e.g. a genome with multiple chromosomes or a protein database):
  *
@@ -127,7 +127,7 @@ struct fm_index_default_traits
 template <std::ranges::RandomAccessRange text_t, fm_index_traits_concept fm_index_traits = fm_index_default_traits>
 //!\cond
     requires alphabet_concept<innermost_value_type_t<text_t>> &&
-             std::Same<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
+             std::Same<underlying_rank_t<innermost_value_type_t<text_t>>, uint8_t>
 //!\endcond
 class fm_index
 {
@@ -146,7 +146,7 @@ protected:
     //!\}
 
     //!\brief Underlying index from the SDSL.
-    sdsl_index_type m_index;
+    sdsl_index_type index;
     //!\brief Pointer to the indexed text.
     text_t const * text = nullptr;
 
@@ -173,7 +173,7 @@ public:
     template <typename fm_index_t>
     friend class detail::fm_index_iterator_node;
 
-    /*!\name Constructors and destructor
+    /*!\name Constructors, destructor and assignment
      * \{
      */
     fm_index() = default;
@@ -236,12 +236,12 @@ public:
         ranges::copy(text | view::reverse | view::to_rank | view::transform([] (uint8_t const r) { return r + 1; }),
                      ranges::begin(tmp_text)); // reverse and increase rank by one
 
-        sdsl::construct_im(m_index, tmp_text, 0);
+        sdsl::construct_im(index, tmp_text, 0);
 
         // TODO: would be nice but doesn't work since it's private and the public member references are const
-        // m_index.m_C.resize(largest_char);
-        // m_index.m_C.shrink_to_fit();
-        // m_index.m_sigma = largest_char;
+        // index.m_C.resize(largest_char);
+        // index.m_C.shrink_to_fit();
+        // index.m_sigma = largest_char;
     }
 
     //!\overload
@@ -263,7 +263,7 @@ public:
      */
     size_type size() const noexcept
     {
-        return m_index.size();
+        return index.size();
     }
 
     /*!\brief Checks whether the index is empty.
@@ -285,7 +285,7 @@ public:
     // operator== not implemented by sdsl indices yet
     // bool operator==(fm_index const & rhs) const noexcept
     // {
-    //     return m_index == rhs.m_index;
+    //     return index == rhs.index;
     // }
 
     // operator== not implemented by sdsl indices yet
@@ -327,7 +327,7 @@ public:
      */
     bool load(filesystem::path const & path)
     {
-        return sdsl::load_from_file(m_index, path);
+        return sdsl::load_from_file(index, path);
     }
 
     /*!\brief Stores the index to disk. Temporary function until cereal is supported.
@@ -344,7 +344,7 @@ public:
      */
     bool store(filesystem::path const & path) const
     {
-        return sdsl::store_to_file(m_index, path);
+        return sdsl::store_to_file(index, path);
     }
 
 };

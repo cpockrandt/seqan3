@@ -47,15 +47,16 @@
 #include <seqan3/core/metafunction/range.hpp>
 #include <seqan3/range/concept.hpp>
 
-namespace seqan3
+namespace seqan3::detail
 {
 
 /*!\addtogroup submodule_fm_index
  * \{
  */
 
-namespace detail
-{
+ // ============================================================================
+ //  sdsl_index_concept
+ // ============================================================================
 
 /*!\interface seqan3::detail::sdsl_index_concept <>
  * \brief Concept for SDSL FM indices (which are called compressed suffix arrays in the SDSL).
@@ -66,17 +67,19 @@ concept sdsl_index_concept = requires (t sdsl_index)
 {
     typename t::size_type;
 
-    requires requires (t sdsl_index, typename t::char_type c, typename t::size_type lb, typename t::size_type rb)
+    { sdsl_index.size() } -> typename t::size_type;
+    { sdsl_index[0] }; // suffix array access
+    { sdsl_index.comp2char[0] } -> uint8_t;
+    { sdsl_index.char2comp[0] } -> uint8_t;
+    { sdsl_index.sigma };
+    { sdsl_index.C[0] };
+
+    requires requires (t sdsl_index, typename t::char_type const c, typename t::size_type const lb,
+                                     typename t::size_type const rb, sdsl::int_vector<8> const text)
     {
-        { sdsl_index.size() } -> typename t::size_type;
-        { sdsl_index[0] }; // suffix array access
-        { sdsl_index.comp2char[0] } -> uint8_t;
-        { sdsl_index.char2comp[0] } -> uint8_t;
-        { sdsl_index.sigma };
-        { sdsl_index.C[0] };
         { sdsl_index.bwt.rank(lb, c) };
         { sdsl_index.wavelet_tree.lex_count(lb, rb, c) };
-        { sdsl::construct_im(sdsl_index, sdsl::int_vector<8> {}, 0) };
+        { sdsl::construct_im(sdsl_index, text, 0) };
     };
 };
 //!\endcond
@@ -94,7 +97,20 @@ concept sdsl_index_concept = requires (t sdsl_index)
  * \}
  */
 
-} // namespace detail
+//!\}
+
+} // namespace seqan3::detail
+
+namespace seqan3
+{
+
+/*!\addtogroup submodule_fm_index
+ * \{
+ */
+
+// ============================================================================
+//  fm_index_traits_concept
+// ============================================================================
 
 /*!\interface seqan3::fm_index_traits_concept <>
  * \brief Concept for unidirectional FM Index traits.
@@ -121,6 +137,10 @@ concept fm_index_traits_concept = requires (t v)
  *
  * \}
  */
+
+// ============================================================================
+//  fm_index_concept
+// ============================================================================
 
 /*!\interface seqan3::fm_index_concept <>
  * \brief Concept for unidirectional FM indices.
@@ -180,6 +200,10 @@ concept fm_index_concept = std::Semiregular<t> && requires (t index)
  * \}
  */
 
+// ============================================================================
+//  fm_index_iterator_concept
+// ============================================================================
+
 /*!\interface seqan3::fm_index_iterator_concept <>
  * \brief Concept for unidirectional FM index iterators.
  *
@@ -232,6 +256,10 @@ concept fm_index_iterator_concept = std::Semiregular<t> && requires (t it)
  * \}
  */
 
+// ============================================================================
+//  bi_fm_index_traits_concept
+// ============================================================================
+
 /*!\interface seqan3::bi_fm_index_traits_concept <>
  * \brief Concept for bidirectional FM Index traits.
  *
@@ -244,8 +272,8 @@ concept bi_fm_index_traits_concept = requires (t v)
     requires fm_index_traits_concept<typename t::fm_index_traits>;
     requires fm_index_traits_concept<typename t::rev_fm_index_traits>;
 
-    requires std::is_same_v<typename t::fm_index_traits::sdsl_index_type::size_type,
-                            typename t::rev_fm_index_traits::sdsl_index_type::size_type>;
+    requires std::Same<typename t::fm_index_traits::sdsl_index_type::size_type,
+                       typename t::rev_fm_index_traits::sdsl_index_type::size_type>;
 };
 //!\endcond
 /*!\name Requirements for seqan3::bi_fm_index_traits_concept
@@ -265,6 +293,10 @@ concept bi_fm_index_traits_concept = requires (t v)
  *
  * \}
  */
+
+// ============================================================================
+//  bi_fm_index_concept
+// ============================================================================
 
 /*!\interface seqan3::bi_fm_index_concept <>
  * \brief Concept for bidirectional FM indices.
@@ -307,6 +339,10 @@ concept bi_fm_index_concept = fm_index_concept<t> && requires (t index)
  *
  * \}
  */
+
+// ============================================================================
+//  bi_fm_index_iterator_concept
+// ============================================================================
 
 /*!\interface seqan3::bi_fm_index_iterator_concept <>
  * \brief Concept for bidirectional FM index iterators.

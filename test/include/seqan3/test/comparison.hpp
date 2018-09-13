@@ -36,6 +36,9 @@
 
 #include <algorithm>
 
+#include <range/v3/algorithm/equal.hpp>
+#include <range/v3/algorithm/sort.hpp>
+
 #include <seqan3/range/concept.hpp>
 
 /*
@@ -52,9 +55,9 @@ namespace test
 template <std::ranges::RandomAccessRange T1, std::ranges::RandomAccessRange T2>
 bool is_set_equal(T1 c1, T2 c2)
 {
-    std::sort(c1.begin(), c1.end());
-    std::sort(c2.begin(), c2.end());
-    return c1 == c2;
+    ranges::sort(c1);
+    ranges::sort(c2);
+    return ranges::equal(c1, c2);
 }
 
 } // namespace test

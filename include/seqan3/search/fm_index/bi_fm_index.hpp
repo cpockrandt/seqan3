@@ -77,12 +77,12 @@ struct bi_fm_index_default_traits
                               must model seqan3::bi_fm_index_traits_concept.
  * \details
  *
- * \todo
+ * \todo write me
  */
 template <std::ranges::RandomAccessRange text_t, bi_fm_index_traits_concept index_traits_t = bi_fm_index_default_traits>
 //!\cond
     requires alphabet_concept<innermost_value_type_t<text_t>> &&
-             std::Same<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
+             std::Same<underlying_rank_t<innermost_value_type_t<text_t>>, uint8_t>
 //!\endcond
 class bi_fm_index
 {
@@ -94,25 +94,25 @@ protected:
 
 public:
 
-    /*!\name Member types
+    /*!\name Text types
      * \{
      */
     //!\brief The type of the forward indexed text.
     using text_type = text_t;
     //!\brief The type of the forward indexed text.
-    using rev_text_type = decltype(view::reverse(*text)); // TODO: necessary?
+    using rev_text_type = decltype(view::reverse(*text));
     //!\}
 
 protected:
     //!\privatesection
 
-    /*!\name Member types
+    /*!\name Index types
      * \{
      */
-    //!\brief The type of the underlying forward SDSL index.
+    //!\brief The type of the underlying SDSL index for the original text.
     using sdsl_index_type = typename index_traits_t::fm_index_traits::sdsl_index_type;
 
-    //!\brief The type of the underlying reverse SDSL index.
+    //!\brief The type of the underlying SDSL index for the reversed text.
     using rev_sdsl_index_type = typename index_traits_t::rev_fm_index_traits::sdsl_index_type;
 
     /*!\brief The type of the reduced alphabet type. (The reduced alphabet might be smaller than the original alphabet
@@ -120,10 +120,10 @@ protected:
      */
     using sdsl_char_type = typename sdsl_index_type::alphabet_type::char_type;
 
-    //!\brief The type of the underlying SDSL index for the original text.
+    //!\brief The type of the underlying FM index for the original text.
     using fm_index_type = fm_index<text_t, typename index_traits_t::fm_index_traits>;
 
-    //!\brief The type of the underlying SDSL index for the reversed text.
+    //!\brief The type of the underlying FM index for the reversed text.
     using rev_fm_index_type = fm_index<rev_text_type, typename index_traits_t::rev_fm_index_traits>;
     //!\}
 
@@ -131,25 +131,29 @@ protected:
     //        constructed from the bidirectional index.
     rev_text_type rev_text;
 
-    //!\brief Underlying index from the SDSL for the original text.
+    //!\brief Underlying FM index for the original text.
     fm_index_type fwd_fm;
 
-    //!\brief Underlying index from the SDSL for the reversed text.
+    //!\brief Underlying FM index for the reversed text.
     rev_fm_index_type rev_fm;
 
 public:
 
-    /*!\name Member types
+    /*!\name Text types
      * \{
      */
     //!\brief The type of the underlying character of text_type.
     using char_type = innermost_value_type_t<text_t>;
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename sdsl_index_type::size_type;
+    //!\}
 
     //!\brief The index traits object.
-    using index_traits = index_traits_t; // TODO: necessary?
+    using index_traits = index_traits_t;
 
+    /*!\name Iterator types
+     * \{
+     */
     //!\brief The type of the bidirectional iterator.
     using iterator_type = bi_fm_index_iterator<bi_fm_index<text_t, index_traits_t>>;
     //!\brief The type of the unidirectional iterator on the original text.
@@ -164,7 +168,7 @@ public:
     template <typename fm_index_t>
     friend class fm_index_iterator;
 
-    /*!\name Constructors and destructor
+    /*!\name Constructors, destructor and assignment
      * \{
      */
     bi_fm_index() = default;
@@ -185,7 +189,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * No guarantees. (\todo Check exception handling in the SDSL)
      */
     bi_fm_index(text_t const & text)
     {
@@ -212,7 +216,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * No guarantees. (\todo Check exception handling in the SDSL)
      */
     void construct(text_t const & text)
     {
@@ -264,7 +268,7 @@ public:
     // operator== not implemented by sdsl indices yet
     // bool operator==(fm_index const & rhs) const noexcept
     // {
-    //     return m_index == rhs.m_index;
+    //     return std::tie(fwd_fm, rev_fm) == std::tie(rhs.fwd_fm, rhs.rev_fm);
     // }
 
     // operator== not implemented by sdsl indices yet
@@ -337,7 +341,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * No guarantees. (\todo Check exception handling in the SDSL)
      */
     bool load(filesystem::path const & path)
     {
@@ -358,7 +362,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * No guarantees. (\todo Check exception handling in the SDSL)
      */
     bool store(filesystem::path const & path) const
     {

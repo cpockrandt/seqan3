@@ -108,11 +108,11 @@ protected:
     using sdsl_char_type = typename index_type::sdsl_char_type;
     //!\}
 
-    //!\brief Type of the underlying FM index.
+    //!\brief Underlying FM index.
     index_type const * index;
-    //!\brief Left suffix array interval of the parent node. Needed for right().
+    //!\brief Left suffix array interval of the parent node. Needed for cycle_back().
     size_type parent_lb;
-    //!\brief Right suffix array interval of the parent node. Needed for right().
+    //!\brief Right suffix array interval of the parent node. Needed for cycle_back().
     size_type parent_rb;
     //!\brief Underlying index from the SDSL.
     node_type node;
@@ -123,7 +123,7 @@ protected:
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept
     {
-        return index->m_index.size() - query_length() - 1; // since the string is reversed during construction
+        return index->index.size() - query_length() - 1; // since the string is reversed during construction
     }
 
     //!\brief Optimized backward search without alphabet mapping
@@ -133,39 +133,28 @@ protected:
         assert(l <= r && r < csa.size());
 
         size_type _l, _r;
-        if constexpr(std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
+
+        size_type cc = c;
+        if constexpr(!std::Same<typename csa_t::alphabet_type, sdsl::plain_byte_alphabet>)
         {
-            size_type const c_begin = csa.C[c];
-            if (r + 1 - l == csa.size()) // [[unlikely]]
-            {
-                _l = c_begin;
-                _r = csa.C[c + 1] - 1;
-            }
-            else
-            {
-                _l = c_begin + csa.bwt.rank(l, c);		  // count c in bwt[0..l-1]
-                _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
-            }
+            cc = csa.char2comp[c];
+            if (cc == 0 && c > 0) // [[unlikely]]
+                return false;
+        }
+
+        size_type const c_begin = csa.C[cc];
+        if (l == 0 && r + 1 == csa.size()) // [[unlikely]]
+        {
+            _l = c_begin;
+            _r = csa.C[cc + 1] - 1;
+            // if we use not the plain_byte_alphabet, we could return always return true here
         }
         else
         {
-            size_type const cc = csa.char2comp[c];
-            if (cc == 0 && c > 0) // [[unlikely]]
-                return false;
-
-            size_type const c_begin = csa.C[cc];
-            if (l == 0 && r + 1 == csa.size()) // [[unlikely]]
-            {
-                l = c_begin;
-                r = csa.C[cc + 1] - 1;
-                return true;
-            }
-            else
-            {
-                _l = c_begin + csa.bwt.rank(l, c);		   // count c in bwt[0..l-1]
-                _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
-            }
+            _l = c_begin + csa.bwt.rank(l, c);		   // count c in bwt[0..l-1]
+            _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
         }
+
         assert(_r + 1 - _l >= 0);
         if (_r >= _l)
         {
@@ -178,7 +167,7 @@ protected:
 
 public:
 
-    /*!\name Constructors and destructor
+    /*!\name Constructors, destructor and assignment
      * \{
      */
     //!\brief Default constructor. Accessing member functions on a default constructed object is undefined behavior.
@@ -190,7 +179,7 @@ public:
     fm_index_iterator(fm_index_iterator &&) noexcept = default;
     fm_index_iterator & operator=(fm_index_iterator &&) noexcept = default;
 
-    fm_index_iterator(index_t const & _index) noexcept : index(&_index), node({0, _index.m_index.size() - 1, 0, 0})
+    fm_index_iterator(index_t const & _index) noexcept : index(&_index), node({0, _index.index.size() - 1, 0, 0})
     {}
     //\}
 
@@ -260,12 +249,12 @@ public:
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
         size_type _lb = node.lb, _rb = node.rb;
-        while (c < index->m_index.sigma && !backward_search(index->m_index, index->m_index.comp2char[c], _lb, _rb))
+        while (c < index->index.sigma && !backward_search(index->index, index->index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != index->m_index.sigma)
+        if (c != index->index.sigma)
         {
             parent_lb = node.lb;
             parent_rb = node.rb;
@@ -301,7 +290,7 @@ public:
 
         sdsl_char_type c_char = to_rank(c) + 1;
 
-        if (backward_search(index->m_index, c_char, _lb, _rb))
+        if (backward_search(index->index, c_char, _lb, _rb))
         {
             parent_lb = node.lb;
             parent_rb = node.rb;
@@ -312,8 +301,7 @@ public:
     }
 
     /*!\brief Tries to extend the query by `seq` to the right.
-     * \tparam query_t Type of the character needs to be convertible to the character type `char_type` of the indexed
-     *                 text.
+    * \tparam seq_t The type of range of the sequence to search; must model std::ranges::RandomAccessRange.
      * \param[in] seq Sequence to extend the query with to the right.
      * \returns `true` if the iterator could extend the query successfully.
      *
@@ -328,11 +316,11 @@ public:
      *
      * No-throw guarantee.
      */
-    template <std::ranges::ForwardRange query_t>
+    template <std::ranges::RandomAccessRange seq_t>
     //!\cond
-        requires implicitly_convertible_to_concept<innermost_value_type_t<query_t>, typename index_t::char_type>
+        requires implicitly_convertible_to_concept<innermost_value_type_t<seq_t>, typename index_t::char_type>
     //!\endcond
-    bool extend_right(query_t && seq) noexcept
+    bool extend_right(seq_t && seq) noexcept
     {
         auto first = seq.begin();
         auto last = seq.end();
@@ -350,7 +338,7 @@ public:
 
             new_parent_lb = _lb;
             new_parent_rb = _rb;
-            if (!backward_search(index->m_index, c, _lb, _rb))
+            if (!backward_search(index->index, c, _lb, _rb))
                 return false;
         }
 
@@ -373,7 +361,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/fm_index_iterator.cpp cycle
+     * \snippet test/snippet/search/fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -394,12 +382,12 @@ public:
         sdsl_char_type c = node.last_char + 1;
         size_type _lb = parent_lb, _rb = parent_rb;
 
-        while (c < index->m_index.sigma && !backward_search(index->m_index, index->m_index.comp2char[c], _lb, _rb))
+        while (c < index->index.sigma && !backward_search(index->index, index->index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != index->m_index.sigma)
+        if (c != index->index.sigma)
         {
             node = {_lb, _rb, node.depth, c};
             return true;
@@ -412,7 +400,7 @@ public:
      *
      * Example:
      *
-     * \snippet test/snippet/index/fm_index_iterator.cpp cycle
+     * \snippet test/snippet/search/fm_index_iterator.cpp cycle
      *
      * ### Complexity
      *
@@ -428,7 +416,7 @@ public:
         assert(index != nullptr && query_length() > 0 && parent_lb <= parent_rb);
 
         typename index_t::char_type c;
-        c.assign_rank(index->m_index.comp2char[node.last_char] - 1); // text is not allowed to contain ranks of 0
+        assign_rank(c, index->index.comp2char[node.last_char] - 1); // text is not allowed to contain ranks of 0
         return c;
     }
 
@@ -472,7 +460,7 @@ public:
     {
         assert(index != nullptr && index->text != nullptr);
 
-        size_type const query_begin = offset() - index->m_index[node.lb];
+        size_type const query_begin = offset() - index->index[node.lb];
         return *index->text | ranges::view::slice(query_begin, query_begin + query_length());
     }
 
@@ -520,7 +508,7 @@ public:
         std::vector<size_type> occ(count());
         for (size_type i = 0; i < occ.size(); ++i)
         {
-            occ[i] = offset() - index->m_index[node.lb + i];
+            occ[i] = offset() - index->index[node.lb + i];
         }
         return occ;
     }
@@ -541,9 +529,8 @@ public:
     {
         assert(index != nullptr);
 
-        size_type const _offset = offset();
         return ranges::view::iota(node.lb, node.lb + count())
-               | view::transform([*this, _offset] (auto sa_pos) { return _offset - index->m_index[sa_pos]; });
+               | view::transform([*this, _offset = offset()] (auto sa_pos) { return _offset - index->index[sa_pos]; });
     }
 
 };
