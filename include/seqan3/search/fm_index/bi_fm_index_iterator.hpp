@@ -575,11 +575,15 @@ public:
     /*!\brief Tries to extend the query by `seq` to the left.
      * \tparam query_t Type of the character needs to be convertible to the character type `char_type` of the indexed
      *                 text.
-     * \param[in] seq Sequence to extend the query with to the left.
+     * \param[in] seq Sequence to extend the query with to the left (starting from right to left, see example).
      * \returns `true` if the iterator could extend the query successfully.
      *
      * If extending fails in the middle of the sequence, all previous computations are rewound to restore the iterator's
      * state before calling this method.
+     *
+     * Example:
+     *
+     * \snippet test/snippet/index/bi_fm_index_iterator.cpp extend_left_seq
      *
      * ### Complexity
      *
