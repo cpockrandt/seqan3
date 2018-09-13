@@ -39,13 +39,12 @@
 
 #pragma once
 
-#include <filesystem>
-
 #include <sdsl/suffix_trees.hpp>
 
 #include <range/v3/algorithm/copy.hpp>
 
 #include <seqan3/core/metafunction/range.hpp>
+#include <seqan3/io/filesystem.hpp>
 #include <seqan3/range/view/to_rank.hpp>
 #include <seqan3/search/fm_index/concept.hpp>
 #include <seqan3/search/fm_index/detail/csa_alphabet_strategy.hpp>
@@ -135,12 +134,16 @@ class fm_index
 protected:
     //!\privatesection
 
+    /*!\name Member types
+     * \{
+     */
     //!\brief The type of the underlying SDSL index.
     using sdsl_index_type = typename fm_index_traits::sdsl_index_type;
     /*!\brief The type of the reduced alphabet type. (The reduced alphabet might be smaller than the original alphabet
      *        in case not all possible characters occur in the indexed text.)
      */
     using sdsl_char_type = typename sdsl_index_type::alphabet_type::char_type;
+    //!\}
 
     //!\brief Underlying index from the SDSL.
     sdsl_index_type m_index;
@@ -148,15 +151,18 @@ protected:
     text_t const * text = nullptr;
 
 public:
+    /*!\name Member types
+     * \{
+     */
     //!\brief The type of the indexed text.
     using text_type = text_t;
     //!\brief The type of the underlying character of text_type.
     using char_type = innermost_value_type_t<text_t>;
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename sdsl_index_type::size_type;
-
     //!\brief The type of the (unidirectional) iterator.
     using iterator_type = fm_index_iterator<fm_index<text_t, fm_index_traits>>;
+    //!\}
 
     template <typename bi_fm_index_t>
     friend class bi_fm_index_iterator;
@@ -319,7 +325,7 @@ public:
      *
      * No guarantees.
      */
-    bool load(std::filesystem::path const & path)
+    bool load(filesystem::path const & path)
     {
         return sdsl::load_from_file(m_index, path);
     }
@@ -336,7 +342,7 @@ public:
      *
      * No guarantees.
      */
-    bool store(std::filesystem::path const & path) const
+    bool store(filesystem::path const & path) const
     {
         return sdsl::store_to_file(m_index, path);
     }

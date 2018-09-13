@@ -128,14 +128,14 @@ TYPED_TEST(bi_fm_index_iterator_test, extend_range)
     typename TypeParam::index_type bi_fm{text};
 
     auto it = bi_fm.begin();
-    EXPECT_FALSE(it.extend_left("GAC"_dna4)); // ""
+    EXPECT_FALSE(it.extend_left("CAG"_dna4)); // ""
     // sentinel position included
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}));
-    EXPECT_TRUE(it.extend_left("GC"_dna4)); // "CG"
+    EXPECT_TRUE(it.extend_left("CG"_dna4)); // "CG"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{1, 9}));
     EXPECT_TRUE(it.extend_right("GTA"_dna4)); // "CGGTA"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{1}));
-    EXPECT_FALSE(it.extend_left("AT"_dna4)); // "CGGTA"
+    EXPECT_FALSE(it.extend_left("TA"_dna4)); // "CGGTA"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{1}));
     EXPECT_TRUE(it.extend_left("A"_dna4)); // "ACGGTA"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{0}));
@@ -179,7 +179,7 @@ TYPED_TEST(bi_fm_index_iterator_test, extend_range_and_cycle)
     EXPECT_DEATH(it.cycle_front(), "");
 #endif
     EXPECT_FALSE(it.extend_left("TT"_dna4)); // "AG"
-    EXPECT_TRUE(it.extend_left("TGC"_dna4)); // "CGTAG"
+    EXPECT_TRUE(it.extend_left("CGT"_dna4)); // "CGTAG"
     EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{9}));
 #ifndef NDEBUG
     EXPECT_DEATH(it.cycle_back(), "");
@@ -207,7 +207,7 @@ TYPED_TEST(bi_fm_index_iterator_test, to_fwd_iterator)
 
     {
         auto it = bi_fm.begin();
-        EXPECT_TRUE(it.extend_left("GATG"_dna4)); // "GTAG"
+        EXPECT_TRUE(it.extend_left("GTAG"_dna4)); // "GTAG"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{3, 10}));
 
         auto fwd_it = it.to_fwd_iterator();
@@ -230,7 +230,7 @@ TYPED_TEST(bi_fm_index_iterator_test, to_rev_iterator)
 
     {
         auto it = bi_fm.begin();
-        EXPECT_TRUE(it.extend_left("GATGC"_dna4)); // "CGTAG"
+        EXPECT_TRUE(it.extend_left("CGTAG"_dna4)); // "CGTAG"
         EXPECT_TRUE(is_set_equal(it.locate(), std::vector<uint64_t>{9}));
 
         auto rev_it = it.to_rev_iterator(); // text "CGATGCAGGATGGCA"

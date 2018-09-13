@@ -49,7 +49,7 @@ std::vector<dna4> genome{"GAATTAACGAAC"_dna4};
 bi_fm_index index{genome}; // build the index
 
 auto it = index.begin(); // create an iterator
-it.extend_left("CAA"_dna4); // search the sequence "AAC"
+it.extend_left("AAC"_dna4); // search the sequence "AAC"
 std::cout << it.query() << '\n'; // outputs "AAC"
 auto uni_it = it.to_fwd_iterator(); // unidirectional iterator on the text "GAATTAACGAAC"
 std::cout << uni_it.query() << '\n'; // outputs "CAA"

@@ -39,13 +39,13 @@
 
 #pragma once
 
-#include <filesystem>
 #include <utility>
 
+#include <seqan3/core/metafunction/range.hpp>
+#include <seqan3/io/filesystem.hpp>
 #include <seqan3/search/fm_index/fm_index.hpp>
 #include <seqan3/search/fm_index/bi_fm_index_iterator.hpp>
 #include <seqan3/std/view/reverse.hpp>
-#include <seqan3/core/metafunction/range.hpp>
 
 namespace seqan3
 {
@@ -79,7 +79,7 @@ struct bi_fm_index_default_traits
  *
  * \todo
  */
-template <std::ranges::RandomAccessRange text_t, bi_fm_index_traits_concept bi_fm_index_traits = bi_fm_index_default_traits>
+template <std::ranges::RandomAccessRange text_t, bi_fm_index_traits_concept index_traits_t = bi_fm_index_default_traits>
 //!\cond
     requires alphabet_concept<innermost_value_type_t<text_t>> &&
              std::Same<typename underlying_rank<innermost_value_type_t<text_t>>::type, uint8_t>
@@ -88,58 +88,75 @@ class bi_fm_index
 {
 protected:
     //!\privatesection
+
     //!\brief Pointer to the indexed text.
     text_t const * text = nullptr;
 
 public:
+
+    /*!\name Member types
+     * \{
+     */
     //!\brief The type of the forward indexed text.
     using text_type = text_t;
-    // TODO: maybe make the two following types protected:
     //!\brief The type of the forward indexed text.
-    using rev_text_type = decltype(view::reverse(*text));
-    //!\brief The index traits object.
-    using index_traits = bi_fm_index_traits;
+    using rev_text_type = decltype(view::reverse(*text)); // TODO: necessary?
+    //!\}
 
 protected:
     //!\privatesection
 
+    /*!\name Member types
+     * \{
+     */
     //!\brief The type of the underlying forward SDSL index.
-    using sdsl_index_type = typename bi_fm_index_traits::fm_index_traits::sdsl_index_type;
+    using sdsl_index_type = typename index_traits_t::fm_index_traits::sdsl_index_type;
 
     //!\brief The type of the underlying reverse SDSL index.
-    using rev_sdsl_index_type = typename bi_fm_index_traits::rev_fm_index_traits::sdsl_index_type;
+    using rev_sdsl_index_type = typename index_traits_t::rev_fm_index_traits::sdsl_index_type;
 
     /*!\brief The type of the reduced alphabet type. (The reduced alphabet might be smaller than the original alphabet
      *        in case not all possible characters occur in the indexed text.)
      */
     using sdsl_char_type = typename sdsl_index_type::alphabet_type::char_type;
 
+    //!\brief The type of the underlying SDSL index for the original text.
+    using fm_index_type = fm_index<text_t, typename index_traits_t::fm_index_traits>;
+
+    //!\brief The type of the underlying SDSL index for the reversed text.
+    using rev_fm_index_type = fm_index<rev_text_type, typename index_traits_t::rev_fm_index_traits>;
+    //!\}
+
     //!\brief Access to a reversed view of the text. Needed when a unidirectional iterator on the reversed text is
     //        constructed from the bidirectional index.
     rev_text_type rev_text;
 
-    //!\brief The type of the underlying SDSL index for the original text.
-    using fm_index_type = fm_index<text_t, typename bi_fm_index_traits::fm_index_traits>;
-    //!\brief The type of the underlying SDSL index for the reversed text.
-    using rev_fm_index_type = fm_index<rev_text_type, typename bi_fm_index_traits::rev_fm_index_traits>;
-
     //!\brief Underlying index from the SDSL for the original text.
     fm_index_type fwd_fm;
+
     //!\brief Underlying index from the SDSL for the reversed text.
     rev_fm_index_type rev_fm;
 
 public:
+
+    /*!\name Member types
+     * \{
+     */
     //!\brief The type of the underlying character of text_type.
     using char_type = innermost_value_type_t<text_t>;
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename sdsl_index_type::size_type;
 
+    //!\brief The index traits object.
+    using index_traits = index_traits_t; // TODO: necessary?
+
     //!\brief The type of the bidirectional iterator.
-    using iterator_type = bi_fm_index_iterator<bi_fm_index<text_t, bi_fm_index_traits>>;
+    using iterator_type = bi_fm_index_iterator<bi_fm_index<text_t, index_traits_t>>;
     //!\brief The type of the unidirectional iterator on the original text.
     using fwd_iterator_type = fm_index_iterator<fm_index_type>;
     //!\brief The type of the unidirectional iterator on the reversed text.
     using rev_iterator_type = fm_index_iterator<rev_fm_index_type>;
+    //!\}
 
     template <typename bi_fm_index_t>
     friend class bi_fm_index_iterator;
@@ -322,12 +339,12 @@ public:
      *
      * No guarantees.
      */
-    bool load(std::filesystem::path const & path)
+    bool load(filesystem::path const & path)
     {
-        std::filesystem::path path_fwd{path};
-        std::filesystem::path path_rev{path};
-        path_fwd += std::filesystem::path{".fwd"};
-        path_rev += std::filesystem::path{".rev"};
+        filesystem::path path_fwd{path};
+        filesystem::path path_rev{path};
+        path_fwd += filesystem::path{".fwd"};
+        path_rev += filesystem::path{".rev"};
         return fwd_fm.load(path_fwd) && rev_fm.load(path_rev);
     }
 
@@ -343,12 +360,12 @@ public:
      *
      * No guarantees.
      */
-    bool store(std::filesystem::path const & path) const
+    bool store(filesystem::path const & path) const
     {
-        std::filesystem::path path_fwd{path};
-        std::filesystem::path path_rev{path};
-        path_fwd += std::filesystem::path{".fwd"};
-        path_rev += std::filesystem::path{".rev"};
+        filesystem::path path_fwd{path};
+        filesystem::path path_rev{path};
+        path_fwd += filesystem::path{".fwd"};
+        path_rev += filesystem::path{".rev"};
         return fwd_fm.store(path_fwd) && rev_fm.store(path_rev);
     }
 

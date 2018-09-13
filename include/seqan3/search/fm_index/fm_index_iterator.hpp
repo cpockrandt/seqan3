@@ -86,28 +86,36 @@ class fm_index_iterator
 {
 
 public:
+
+    /*!\name Member types
+     * \{
+     */
     //!\brief Type of the index.
     using index_type = index_t;
     //!\brief Type for representing positions in the indexed text.
     using size_type = typename index_type::size_type;
+    //!\}
 
 protected:
     //!\privatesection
 
+    /*!\name Member types
+     * \{
+     */
     //!\brief Type of the representation of a suffix tree node.
     using node_type = detail::fm_index_iterator_node<index_t>;
-
     //!\brief Type of the representation of characters in the underlying SDSL index.
     using sdsl_char_type = typename index_type::sdsl_char_type;
+    //!\}
 
     //!\brief Type of the underlying FM index.
-    index_type const * m_index;
+    index_type const * index;
     //!\brief Left suffix array interval of the parent node. Needed for right().
-    size_type m_parent_lb;
+    size_type parent_lb;
     //!\brief Right suffix array interval of the parent node. Needed for right().
-    size_type m_parent_rb;
+    size_type parent_rb;
     //!\brief Underlying index from the SDSL.
-    node_type m_node;
+    node_type node;
 
     template <typename _index_t>
     friend class bi_fm_index_iterator;
@@ -115,7 +123,7 @@ protected:
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept
     {
-        return m_index->m_index.size() - query_length() - 1; // since the string is reversed during construction
+        return index->m_index.size() - query_length() - 1; // since the string is reversed during construction
     }
 
     //!\brief Optimized backward search without alphabet mapping
@@ -178,7 +186,7 @@ public:
     fm_index_iterator(fm_index_iterator &&) noexcept = default;
     fm_index_iterator & operator=(fm_index_iterator &&) noexcept = default;
 
-    fm_index_iterator(index_t const & index) noexcept : m_index(&index), m_node({0, index.m_index.size() - 1, 0, 0})
+    fm_index_iterator(index_t const & _index) noexcept : index(&_index), node({0, _index.m_index.size() - 1, 0, 0})
     {}
     //\}
 
@@ -196,13 +204,13 @@ public:
      */
     bool operator==(fm_index_iterator const & rhs) const noexcept
     {
-        assert(m_index != nullptr);
-        assert(m_node != rhs.m_node ||
-            (query_length() == 0 || (m_parent_lb == rhs.m_parent_lb && m_parent_rb == rhs.m_parent_rb)));
+        assert(index != nullptr);
+        assert(node != rhs.node ||
+            (query_length() == 0 || (parent_lb == rhs.parent_lb && parent_rb == rhs.parent_rb)));
 
         // position in the implicit suffix tree is defined by the SA interval and depth.
         // No need to compare parent intervals
-        return m_node == rhs.m_node;
+        return node == rhs.node;
     }
 
     /*!\brief Compares two iterators.
@@ -219,7 +227,7 @@ public:
      */
     bool operator!=(fm_index_iterator const & rhs) const noexcept
     {
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
         return !(*this == rhs);
     }
@@ -245,21 +253,21 @@ public:
     {
         // TODO: specialize extend_right() and cycle_back() for EPR-dictionaries
         // store all iterators at once in a private std::array of iterators
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
         sdsl_char_type c = 1; // NOTE: start with 0 or 1 depending on implicit_sentintel
         size_type _lb, _rb;
-        while (c < m_index->m_index.sigma &&
-               !backward_search(m_index->m_index, m_node.lb, m_node.rb, m_index->m_index.comp2char[c], _lb, _rb))
+        while (c < index->m_index.sigma &&
+               !backward_search(index->m_index, node.lb, node.rb, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != m_index->m_index.sigma)
+        if (c != index->m_index.sigma)
         {
-            m_parent_lb = m_node.lb;
-            m_parent_rb = m_node.rb;
-            m_node = {_lb, _rb, m_node.depth + 1, c};
+            parent_lb = node.lb;
+            parent_rb = node.rb;
+            node = {_lb, _rb, node.depth + 1, c};
             return true;
         }
         return false;
@@ -285,17 +293,17 @@ public:
     //!\endcond
     bool extend_right(char_t const c) noexcept
     {
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
         size_type _lb, _rb;
 
         sdsl_char_type c_char = to_rank(c) + 1;
 
-        if (backward_search(m_index->m_index, m_node.lb, m_node.rb, c_char, _lb, _rb))
+        if (backward_search(index->m_index, node.lb, node.rb, c_char, _lb, _rb))
         {
-            m_parent_lb = m_node.lb;
-            m_parent_rb = m_node.rb;
-            m_node = {_lb, _rb, m_node.depth + 1, c_char};
+            parent_lb = node.lb;
+            parent_rb = node.rb;
+            node = {_lb, _rb, node.depth + 1, c_char};
             return true;
         }
         return false;
@@ -327,10 +335,10 @@ public:
         auto first = seq.begin();
         auto last = seq.end();
 
-        assert(m_index != nullptr && first != last); // range must not be empty!
+        assert(index != nullptr && first != last); // range must not be empty!
 
-        size_type _lb = m_node.lb, _rb = m_node.rb;
-        size_type _m_parent_lb = m_node.lb, _m_parent_rb = m_node.rb;
+        size_type _lb = node.lb, _rb = node.rb;
+        size_type _parent_lb = node.lb, _parent_rb = node.rb;
 
         sdsl_char_type c;
 
@@ -338,15 +346,15 @@ public:
         {
             c = to_rank(*it) + 1;
 
-            _m_parent_lb = _lb;
-            _m_parent_rb = _rb;
-            if (!backward_search(m_index->m_index, _m_parent_lb, _m_parent_rb, c, _lb, _rb))
+            _parent_lb = _lb;
+            _parent_rb = _rb;
+            if (!backward_search(index->m_index, _parent_lb, _parent_rb, c, _lb, _rb))
                 return false;
         }
 
-        m_parent_lb = _m_parent_lb;
-        m_parent_rb = _m_parent_rb;
-        m_node = {_lb, _rb, last - first + m_node.depth, c};
+        parent_lb = _parent_lb;
+        parent_rb = _parent_rb;
+        node = {_lb, _rb, last - first + node.depth, c};
         return true;
     }
 
@@ -378,21 +386,21 @@ public:
      */
     bool cycle_back() noexcept
     {
-        // m_parent_lb > m_parent_rb --> invalid interval
-        assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
+        // parent_lb > parent_rb --> invalid interval
+        assert(index != nullptr && query_length() > 0 && parent_lb <= parent_rb);
 
-        sdsl_char_type c = m_node.last_char + 1;
+        sdsl_char_type c = node.last_char + 1;
         size_type _lb, _rb;
 
-        while (c < m_index->m_index.sigma &&
-               !backward_search(m_index->m_index, m_parent_lb, m_parent_rb, m_index->m_index.comp2char[c], _lb, _rb))
+        while (c < index->m_index.sigma &&
+               !backward_search(index->m_index, parent_lb, parent_rb, index->m_index.comp2char[c], _lb, _rb))
         {
             ++c;
         }
 
-        if (c != m_index->m_index.sigma)
+        if (c != index->m_index.sigma)
         {
-            m_node = {_lb, _rb, m_node.depth, c};
+            node = {_lb, _rb, node.depth, c};
             return true;
         }
         return false;
@@ -415,11 +423,11 @@ public:
      */
     typename index_t::char_type last_char() noexcept
     {
-        // m_parent_lb > m_parent_rb --> invalid interval
-        assert(m_index != nullptr && query_length() > 0 && m_parent_lb <= m_parent_rb);
+        // parent_lb > parent_rb --> invalid interval
+        assert(index != nullptr && query_length() > 0 && parent_lb <= parent_rb);
 
         typename index_t::char_type c;
-        c.assign_rank(m_index->m_index.comp2char[m_node.last_char] - 1); // text is not allowed to contain ranks of 0
+        c.assign_rank(index->m_index.comp2char[node.last_char] - 1); // text is not allowed to contain ranks of 0
         return c;
     }
 
@@ -439,10 +447,10 @@ public:
      */
     size_type query_length() const noexcept
     {
-        assert(m_index != nullptr);
-        assert(m_node.depth != 0 || (m_node.lb == 0 && m_node.rb == m_index->size() - 1)); // depth == 0 -> root node
+        assert(index != nullptr);
+        assert(node.depth != 0 || (node.lb == 0 && node.rb == index->size() - 1)); // depth == 0 -> root node
 
-        return m_node.depth;
+        return node.depth;
     }
 
     /*!\brief Returns the searched query.
@@ -461,16 +469,16 @@ public:
      */
     auto query() const noexcept
     {
-        assert(m_index != nullptr && m_index->text != nullptr);
+        assert(index != nullptr && index->text != nullptr);
 
-        size_type const query_begin = offset() - m_index->m_index[m_node.lb];
-        return *m_index->text | ranges::view::slice(query_begin, query_begin + query_length());
+        size_type const query_begin = offset() - index->m_index[node.lb];
+        return *index->text | ranges::view::slice(query_begin, query_begin + query_length());
     }
 
     //!\copydoc query()
     auto operator*() const noexcept
     {
-       assert(m_index != nullptr && m_index->text != nullptr);
+       assert(index != nullptr && index->text != nullptr);
 
        return query();
     }
@@ -488,9 +496,9 @@ public:
      */
     size_type count() const noexcept
     {
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
-        return 1 + m_node.rb - m_node.lb;
+        return 1 + node.rb - node.lb;
     }
 
     /*!\brief Locates the occurrences of the searched query in the text.
@@ -506,12 +514,12 @@ public:
      */
     std::vector<size_type> locate() const
     {
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
         std::vector<size_type> occ(count());
         for (size_type i = 0; i < occ.size(); ++i)
         {
-            occ[i] = offset() - m_index->m_index[m_node.lb + i];
+            occ[i] = offset() - index->m_index[node.lb + i];
         }
         return occ;
     }
@@ -530,11 +538,11 @@ public:
      */
     auto lazy_locate() const
     {
-        assert(m_index != nullptr);
+        assert(index != nullptr);
 
         size_type const _offset = offset();
-        return ranges::view::iota(m_node.lb, m_node.lb + count())
-               | view::transform([*this, _offset] (auto sa_pos) { return _offset - m_index->m_index[sa_pos]; });
+        return ranges::view::iota(node.lb, node.lb + count())
+               | view::transform([*this, _offset] (auto sa_pos) { return _offset - index->m_index[sa_pos]; });
     }
 
 };
