@@ -168,7 +168,8 @@ protected:
                               size_type & l_bwd, size_type & r_bwd) const noexcept
     {
         assert((l_fwd <= r_fwd) && (r_fwd < csa.size()));
-        assert((r_fwd + 1 >= l_fwd) && (r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd));
+        assert(r_fwd + 1 >= l_fwd);
+        assert(r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
 
         size_type _l_fwd, _r_fwd, _l_bwd, _r_bwd;
 
@@ -186,7 +187,7 @@ protected:
             _l_fwd = c_begin;
             _l_bwd = c_begin;
             _r_fwd = csa.C[cc + 1] - 1;
-            _r_bwd = r_fwd;
+            _r_bwd = _r_fwd;
             // if we use not the plain_byte_alphabet, we could return always return true here
         }
         else
@@ -201,13 +202,14 @@ protected:
             _r_bwd = r_bwd - b;
         }
 
-        assert((_r_fwd + 1 >= _l_fwd) && (_r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd));
         if (_r_fwd >= _l_fwd)
         {
             l_fwd = _l_fwd;
             r_fwd = _r_fwd;
             l_bwd = _l_bwd;
             r_bwd = _r_bwd;
+            assert(r_fwd + 1 >= l_fwd);
+            assert(r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
             return true;
         }
         return false;
@@ -239,13 +241,14 @@ protected:
         size_type const _l_bwd = r_bwd + 1;
         size_type const _r_bwd = r_bwd + 1 + rank_r - rank_l;
 
-        assert((_r_fwd + 1 >= _l_fwd) && (_r_bwd + 1 - _l_bwd == _r_fwd + 1 - _l_fwd));
         if (_r_fwd >= _l_fwd)
         {
             l_fwd = _l_fwd;
             r_fwd = _r_fwd;
             l_bwd = _l_bwd;
             r_bwd = _r_bwd;
+            assert(r_fwd + 1 >= l_fwd);
+            assert(r_bwd + 1 - l_bwd == r_fwd + 1 - l_fwd);
             return true;
         }
         return false;

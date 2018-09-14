@@ -32,31 +32,31 @@
 //
 // ============================================================================
 
- /*!\file
-  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
-  * \brief Meta-header for the search module.
-  *
-  * \defgroup search Search
-  *
-  * ## Introduction
-  *
-  * Searching is a key component in many sequence analysis tools. The search module is a powerful and easy way to search
-  * sequences in a large text or an arbitrary nested collection of texts. When it comes to searching, indices are a core
-  * component for searching large amounts of data and are used for tools such as read mappers, assemblers or protein
-  * search tools. There are currently two major kind of indices: FM indices and k-mer indices (also known as q-gram
-  * indices).
-  *
-  * \todo Elaborate on that (space consumption for growing k, maybe a rule of thumb).
-  *
-  * Generally speaking k-mer indices support very fast searching of exact k-mers (strings of length k) or k-mers with
-  * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
-  * with arbitrary pattern lengths and error numbers / positions.
-  *
-  * SeqAn3 currently supports very fast FM indices. For more details visit the \ref submodule_fm_index
-  * "FM index submodule".
-  *
-  * \todo k-mer indices are coming soon. Stay tuned!
-  */
+/*!\file
+ * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+ * \brief Meta-header for the search module.
+ *
+ * \defgroup search Search
+ *
+ * ## Introduction
+ *
+ * Searching is a key component in many sequence analysis tools. The search module is a powerful and easy way to search
+ * sequences in a large text or an arbitrary nested collection of texts. When it comes to searching, indices are a core
+ * component for searching large amounts of data and are used for tools such as read mappers, assemblers or protein
+ * search tools. There are currently two major kind of indices: FM indices and k-mer indices (also known as q-gram
+ * indices).
+ *
+ * \todo Elaborate on that (space consumption for growing k, maybe a rule of thumb).
+ *
+ * Generally speaking k-mer indices support very fast searching of exact k-mers (strings of length k) or k-mers with
+ * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
+ * with arbitrary pattern lengths and error numbers / positions.
+ *
+ * SeqAn3 currently supports very fast FM indices. For more details visit the \ref submodule_fm_index
+ * "FM index submodule".
+ *
+ * \todo k-mer indices are coming soon. Stay tuned!
+ */
 
 #pragma once
 

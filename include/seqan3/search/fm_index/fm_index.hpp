@@ -184,17 +184,13 @@ public:
     ~fm_index() = default;
 
     /*!\brief Constructor that immediately constructs the index given a range.
-     *        The range cannot be an rvalue (i.e. a temporary object).
+              The range cannot be an rvalue (i.e. a temporary object) and has to be non-empty.
      * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
      * ### Complexity
      *
      * \todo At least linear.
-     *
-     * ### Exceptions
-     *
-     * No guarantees.
      */
     fm_index(text_t const & text)
     {
@@ -208,7 +204,8 @@ public:
     fm_index(text_t const &&) = delete;
     //!\}
 
-    /*!\brief Constructs the index given a range. The range cannot be an rvalue (i.e. a temporary object).
+    /*!\brief Constructs the index given a range.
+              The range cannot be an rvalue (i.e. a temporary object) and has to be non-empty.
      * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
@@ -225,7 +222,9 @@ public:
      */
     void construct(text_t const & text)
     {
-        assert(text.begin() != text.end()); // text must not be empty
+         // text must not be empty
+        if (text.begin() == text.end())
+            throw std::invalid_argument("The text that is indexed cannot be empty.");
         this->text = &text;
         // TODO:
         // * check what happens in sdsl when constructed twice!
@@ -323,11 +322,17 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * Strong exception guarantee.
      */
     bool load(filesystem::path const & path)
     {
-        return sdsl::load_from_file(index, path);
+        sdsl_index_type tmp;
+        if (sdsl::load_from_file(tmp, path))
+        {
+            std::swap(this->index, tmp);
+            return true;
+        }
+        return false;
     }
 
     /*!\brief Stores the index to disk. Temporary function until cereal is supported.
@@ -340,7 +345,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees.
+     * Strong exception guarantee.
      */
     bool store(filesystem::path const & path) const
     {

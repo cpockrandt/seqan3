@@ -155,11 +155,11 @@ protected:
             _r = c_begin + csa.bwt.rank(r + 1, c) - 1; // count c in bwt[0..r]
         }
 
-        assert(_r + 1 - _l >= 0);
         if (_r >= _l)
         {
             r = _r;
             l = _l;
+            assert(r + 1 - l >= 0);
             return true;
         }
         return false;
@@ -376,8 +376,9 @@ public:
      */
     bool cycle_back() noexcept
     {
+        assert(index != nullptr && query_length() > 0);
         // parent_lb > parent_rb --> invalid interval
-        assert(index != nullptr && query_length() > 0 && parent_lb <= parent_rb);
+        assert(parent_lb <= parent_rb);
 
         sdsl_char_type c = node.last_char + 1;
         size_type _lb = parent_lb, _rb = parent_rb;

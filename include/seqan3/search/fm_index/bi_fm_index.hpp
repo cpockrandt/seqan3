@@ -179,17 +179,13 @@ public:
     ~bi_fm_index() = default;
 
     /*!\brief Constructor that immediately constructs the index given a range.
-     *        The range cannot be an rvalue (i.e. a temporary object).
+     *        The range cannot be an rvalue (i.e. a temporary object) and has to be non-empty.
      * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
      * ### Complexity
      *
      * \todo At least linear.
-     *
-     * ### Exceptions
-     *
-     * No guarantees. (\todo Check exception handling in the SDSL)
      */
     bi_fm_index(text_t const & text)
     {
@@ -203,7 +199,8 @@ public:
     bi_fm_index(text_t const &&) = delete;
     //!\}
 
-    /*!\brief Constructs the index given a range. The range cannot be an rvalue (i.e. a temporary object).
+    /*!\brief Constructs the index given a range.
+     *        The range cannot be an rvalue (i.e. a temporary object) and has to be non-empty.
      * \tparam text_t The type of range to construct from; must model std::ranges::RandomAccessRange.
      * \param[in] text The text to construct from.
      *
@@ -216,15 +213,28 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees. (\todo Check exception handling in the SDSL)
+     * No guarantee. \todo Ensure strong exception guarantee.
      */
     void construct(text_t const & text)
     {
-        assert(text.begin() != text.end()); // text must not be empty
+         // text must not be empty
+        if (text.begin() == text.end())
+            throw std::invalid_argument("The text that is indexed cannot be empty.");
+
         this->text = &text;
         rev_text = view::reverse(text);
         fwd_fm.construct(text);
         rev_fm.construct(rev_text);
+
+        // does not work yet. segmentation fault in bi_fm_index_iterator snippet
+        // bi_fm_index tmp;
+        // tmp.text = &text;
+        // tmp.rev_text = view::reverse(*tmp.text);
+        // tmp.fwd_fm.construct(*tmp.text);
+        // tmp.rev_fm.construct(tmp.rev_text);
+        // std::swap(*this, tmp);
+        // this->text = &text;
+        // rev_text = view::reverse(text);
     }
 
     //!\overload
@@ -341,7 +351,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees. (\todo Check exception handling in the SDSL)
+     * Strong exception guarantee.
      */
     bool load(filesystem::path const & path)
     {
@@ -362,7 +372,7 @@ public:
      *
      * ### Exceptions
      *
-     * No guarantees. (\todo Check exception handling in the SDSL)
+     * Strong exception guarantee.
      */
     bool store(filesystem::path const & path) const
     {
