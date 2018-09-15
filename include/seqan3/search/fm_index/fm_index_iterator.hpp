@@ -54,6 +54,12 @@
 #include <seqan3/search/fm_index/fm_index.hpp>
 #include <seqan3/std/view/transform.hpp>
 
+// namespace seqan3::detail
+// {
+//     // forward declaration
+//     auto get_suffix_array_range(fm_index_iterator<index_t> const & it);
+// } // namespace seqan3::detail
+
 namespace seqan3
 {
 
@@ -119,6 +125,8 @@ protected:
 
     template <typename _index_t>
     friend class bi_fm_index_iterator;
+
+    // friend detail::get_suffix_array_range;
 
     //!\brief Helper function to recompute text positions since the indexed text is reversed.
     size_type offset() const noexcept

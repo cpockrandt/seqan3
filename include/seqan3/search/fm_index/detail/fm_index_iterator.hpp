@@ -89,6 +89,16 @@ struct fm_index_iterator_node
     }
 };
 
+// std::tuple get_suffix_array_range(fm_index_iterator<index_t> const & it)
+// {
+//     return {node.lb, node.rb};
+// }
+//
+// std::tuple get_suffix_array_range(bi_fm_index_iterator<index_t> const & it)
+// {
+//     return {node.lb, node.rb};
+// }
+
 //!\publicsection
 
 //!\}

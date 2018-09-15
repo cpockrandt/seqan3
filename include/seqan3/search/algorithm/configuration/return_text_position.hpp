@@ -39,10 +39,10 @@
 
 #pragma once
 
-#include <seqan3/search/configuration/utility.hpp>
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
+#include <seqan3/search/algorithm/configuration/utility.hpp>
 
 /*!\addtogroup search
  * \{

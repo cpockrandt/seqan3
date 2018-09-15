@@ -32,33 +32,37 @@
 //
 // ============================================================================
 
-/*!\file
- * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief Meta-header for the search module.
+ /*!\file
+  * \brief Meta-header for the \link search_configuration search configuration module \endlink.
+  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+  */
+
+ #pragma once
+
+/*!\defgroup search_configuration Configuration
+ * \brief Data structures and utility functions for configuring search algorithm.
+ * \ingroup search
  *
- * \defgroup search Search
- *
- * ## Introduction
- *
- * Searching is a key component in many sequence analysis tools. The search module is a powerful and easy way to search
- * sequences in a large text or an arbitrary nested collection of texts. When it comes to searching, indices are a core
- * component for searching large amounts of data and are used for tools such as read mappers, assemblers or protein
- * search tools. There are currently two major kind of indices: FM indices and k-mer indices (also known as q-gram
- * indices).
- *
- * \todo Elaborate on that (space consumption for growing k, maybe a rule of thumb).
- *
- * Generally speaking k-mer indices support very fast searching of exact k-mers (strings of length k) or k-mers with
- * predefined wildcard positions that do not have to match. FM indices on the other hand are more versatile and work
- * with arbitrary pattern lengths and error numbers / positions.
- *
- * SeqAn3 currently supports very fast FM indices. For more details visit the \ref submodule_fm_index
- * "FM index submodule".
- *
- * \todo k-mer indices are coming soon. Stay tuned!
+ * \todo Write detailed landing page.
  */
 
-#pragma once
+#include <seqan3/search/algorithm/configuration/max_deletion_error_rate.hpp>
+#include <seqan3/search/algorithm/configuration/max_deletion_error.hpp>
+#include <seqan3/search/algorithm/configuration/max_insertion_error_rate.hpp>
+#include <seqan3/search/algorithm/configuration/max_insertion_error.hpp>
+#include <seqan3/search/algorithm/configuration/max_substitution_error_rate.hpp>
+#include <seqan3/search/algorithm/configuration/max_substitution_error.hpp>
+#include <seqan3/search/algorithm/configuration/max_total_error_rate.hpp>
+#include <seqan3/search/algorithm/configuration/max_total_error.hpp>
+#include <seqan3/search/algorithm/configuration/on_hit.hpp>
+#include <seqan3/search/algorithm/configuration/return_index_iterator.hpp>
+#include <seqan3/search/algorithm/configuration/return_text_position.hpp>
+#include <seqan3/search/algorithm/configuration/strategy_all_best.hpp>
+#include <seqan3/search/algorithm/configuration/strategy_all.hpp>
+#include <seqan3/search/algorithm/configuration/strategy_best.hpp>
+#include <seqan3/search/algorithm/configuration/strategy_strata.hpp>
+#include <seqan3/search/algorithm/configuration/utility.hpp>
 
-#include <seqan3/search/algorithm/all.hpp>
-#include <seqan3/search/fm_index/all.hpp>
+/*!\namespace seqan3::search_cfg
+ * \brief A special sub namespace for the search configurations.
+ */

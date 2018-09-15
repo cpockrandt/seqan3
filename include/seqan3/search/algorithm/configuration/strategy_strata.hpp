@@ -33,81 +33,87 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the configuration for maximum number of errors across all error types.
+ * \brief Provides the search strategy configuration "strata".
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
 #pragma once
 
-#include <seqan3/search/configuration/utility.hpp>
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
+#include <seqan3/search/algorithm/configuration/utility.hpp>
+
+/*!\addtogroup search
+ * \{
+ */
 
 namespace seqan3::detail
 {
-/*!\brief A configuration element for the maximum number of errors across all error types (mismatches, insertions,
-          deletions). This is an upper bound of errors independent from error numbers or rates of specific error types.
+
+/*!\brief Configuration element to receive all hits with the viewest errors plus 'value' (strata mode).
  * \ingroup search_configuration
  */
-struct search_config_max_total_error
+struct search_config_strategy_strata
 {
     //!\brief The actual value.
     uint8_t value;
 };
 
-/*!\brief The max_total_error adaptor enabling pipe notation.
+/*!\brief The seqan3::search_cfg::strategy_strata adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_max_total_error_adaptor : public configuration_fn_base<search_config_max_total_error_adaptor>
+struct search_config_strategy_strata_adaptor : public configuration_fn_base<search_config_strategy_strata_adaptor>
 {
 
-    /*!\brief Adds to the configuration a max_total_error configuration element.
-     * \relates seqan3::search_config_max_total_error
-     * \param[in] cfg  The configuration to be extended.
-     * \param[in] nbr The number of maximum errors used for the algorithm.
-     * \returns A new configuration containing the max_total_error configuration element.
+    /*!\brief Adds to the configuration the seqan3::search_cfg::strategy_strata configuration element.
+     * \param[in] cfg The configuration to be extended.
+      * \param[in] strata_value The strata value. This will find all hits with up to b + strata_value errors where b is
+                                the number of errors of the best hit.
+     * \returns A new configuration containing the seqan3::search_cfg::strategy_strata configuration element.
      */
     template <typename configuration_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg, uint8_t const nbr) const
+    constexpr auto invoke(configuration_t && cfg, uint8_t const strata_value) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::max_total_error, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_total_error));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::strategy_strata, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::strategy_strata));
 
-        search_config_max_total_error tmp{nbr};
-        return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
+        // search_config_strategy_strata tmp{strata_value};
+        return std::forward<configuration_t>(cfg).push_front(search_config_strategy_strata{strata_value});
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_max_total_error.
+//!\brief Helper template meta-function associated with detail::search_config_strategy_strata.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::max_total_error>
+struct on_search_config<search_cfg::id::strategy_strata>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_max_total_error>::type;
+    using invoke = typename std::is_same<t, search_config_strategy_strata>::type;
 };
 
-//!\brief Mapping from the detail::search_config_max_total_error type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_strategy_strata type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_max_total_error>
+struct search_config_type_to_id<search_config_strategy_strata>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::max_total_error;
+    static constexpr search_cfg::id value = search_cfg::id::strategy_strata;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief A configuration element for the maximum number of errors across all error types (mismatches, insertions,
-          deletions). This is an upper bound of errors independent from error numbers or rates of specific error types.
+/*!\brief Configuration element to receive all hits with b + s errors where b is the number of errors of the best hit
+ *        and s is the strata value (parameter input).
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_max_total_error_adaptor max_total_error;
+inline constexpr detail::search_config_strategy_strata_adaptor strategy_strata;
 
 } // namespace seqan3::search_cfg
+
+//!\}

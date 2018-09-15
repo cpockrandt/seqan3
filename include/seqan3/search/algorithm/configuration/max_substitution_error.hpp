@@ -33,39 +33,39 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the configuration for maximum number of insertion errors.
+ * \brief Provides the configuration for maximum number of substitution errors (mismatches).
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
 #pragma once
 
-#include <seqan3/search/configuration/utility.hpp>
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
+#include <seqan3/search/algorithm/configuration/utility.hpp>
 
 namespace seqan3::detail
 {
-/*!\brief A configuration element for the maximum number of insertion errors.
+/*!\brief A configuration element for the maximum number of substitution errors (mismatches).
  * \ingroup search_configuration
  */
-struct search_config_max_insertion_error
+struct search_config_max_substitution_error
 {
     //!\brief The actual value.
     uint8_t value;
 };
 
-/*!\brief The max_insertion_error adaptor enabling pipe notation.
+/*!\brief The max_substitution_error adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_max_insertion_error_adaptor : public configuration_fn_base<search_config_max_insertion_error_adaptor>
+struct search_config_max_substitution_error_adaptor : public configuration_fn_base<search_config_max_substitution_error_adaptor>
 {
 
-    /*!\brief Adds to the configuration a max_insertion_error configuration element.
-     * \relates seqan3::search_config_max_insertion_error
+    /*!\brief Adds to the configuration a max_substitution_error configuration element.
+     * \relates seqan3::search_config_max_substitution_error
      * \param[in] cfg  The configuration to be extended.
-     * \param[in] nbr The number of maximum insertion errors used for the algorithm.
-     * \returns A new configuration containing the max_insertion_error configuration element.
+     * \param[in] nbr The number of maximum substitution errors used for the algorithm.
+     * \returns A new configuration containing the max_substitution_error configuration element.
      */
     template <typename configuration_t>
     //!\cond
@@ -73,39 +73,39 @@ struct search_config_max_insertion_error_adaptor : public configuration_fn_base<
     //!\endcond
     constexpr auto invoke(configuration_t && cfg, uint8_t const nbr) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::max_insertion_error, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_insertion_error));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::max_substitution_error, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_substitution_error));
 
-        search_config_max_insertion_error tmp{nbr};
+        search_config_max_substitution_error tmp{nbr};
         return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_max_insertion_error.
+//!\brief Helper template meta-function associated with detail::search_config_max_substitution_error.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::max_insertion_error>
+struct on_search_config<search_cfg::id::max_substitution_error>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_max_insertion_error>::type;
+    using invoke = typename std::is_same<t, search_config_max_substitution_error>::type;
 };
 
-//!\brief Mapping from the detail::search_config_max_insertion_error type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_max_substitution_error type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_max_insertion_error>
+struct search_config_type_to_id<search_config_max_substitution_error>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::max_insertion_error;
+    static constexpr search_cfg::id value = search_cfg::id::max_substitution_error;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief A configuration element for the maximum number of insertion errors.
+/*!\brief A configuration element for the maximum number of substitution errors (mismatches).
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_max_insertion_error_adaptor max_insertion_error;
+inline constexpr detail::search_config_max_substitution_error_adaptor max_substitution_error;
 
 } // namespace seqan3::search_cfg

@@ -33,36 +33,30 @@
 // ============================================================================
 
  /*!\file
-  * \brief Meta-header for the \link search_configuration search configuration module \endlink.
   * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+  * \brief Meta-header for the Search Algorithm module.
+  *
+  * \defgroup submodule_search_algorithm Algorithm
+  * \ingroup search
+  *
+  * ## Search Algorithms
+  *
+  * The Search module offers a simple unified interface that allows searching SeqAn3 indices such as FM indices or k-mer
+  * indices and choosing the best algorithm based on the index at hand.
+  *
+  * ## FM Indices
+  *
+  * The search algorithms for FM indices currently only implement a trivial backtracking approach which will soon been
+  * replaced by Optimum Search Schemes (TODO: cite), 01*0 patterns and algorithmic improvements such as in-text
+  * verification.
+  *
+  * ## K-mer Indices
+  *
+  * \todo Rewrite landing page.
+  *
   */
 
- #pragma once
+#pragma once
 
-/*!\defgroup search_configuration Configuration
- * \brief Data structures and utility functions for configuring search algorithm.
- * \ingroup search
- *
- * \todo Write detailed landing page.
- */
-
-#include <seqan3/search/configuration/max_deletion_error_rate.hpp>
-#include <seqan3/search/configuration/max_deletion_error.hpp>
-#include <seqan3/search/configuration/max_insertion_error_rate.hpp>
-#include <seqan3/search/configuration/max_insertion_error.hpp>
-#include <seqan3/search/configuration/max_substitution_error_rate.hpp>
-#include <seqan3/search/configuration/max_substitution_error.hpp>
-#include <seqan3/search/configuration/max_total_error_rate.hpp>
-#include <seqan3/search/configuration/max_total_error.hpp>
-#include <seqan3/search/configuration/on_hit.hpp>
-#include <seqan3/search/configuration/return_index_iterator.hpp>
-#include <seqan3/search/configuration/return_text_position.hpp>
-#include <seqan3/search/configuration/strategy_all_best.hpp>
-#include <seqan3/search/configuration/strategy_all.hpp>
-#include <seqan3/search/configuration/strategy_best.hpp>
-#include <seqan3/search/configuration/strategy_strata.hpp>
-#include <seqan3/search/configuration/utility.hpp>
-
-/*!\namespace seqan3::search_cfg
- * \brief A special sub namespace for the search configurations.
- */
+#include <seqan3/search/algorithm/configuration/all.hpp>
+#include <seqan3/search/algorithm/search.hpp>

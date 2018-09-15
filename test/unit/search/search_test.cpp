@@ -32,136 +32,260 @@
 //
 // ============================================================================
 
+#include <algorithm>
 #include <type_traits>
 
-#include <seqan3/search/all.hpp>
-#include <seqan3/test/comparison.hpp>
+#include <seqan3/search/algorithm/all.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace seqan3;
-using namespace seqan3::test;
 using namespace seqan3::literal;
 using namespace seqan3::search_cfg;
+
+template <typename T>
+std::vector<T> sort(std::vector<T> v)
+{
+    std::sort(v.begin(), v.end());
+    v.erase(std::unique(v.begin(), v.end()), v.end()); // TODO: remove once duplicates are filtered
+    return v;
+}
+
+template <typename T>
+std::vector<std::vector<T>> sort(std::vector<std::vector<T>> v)
+{
+    std::for_each(v.begin(), v.end(), [](auto & hits) { sort(hits); } );
+    return v;
+}
 
 template <typename T>
 class search_test : public ::testing::Test
 {
 public:
-    std::vector<dna4> text{"ACGTACGT"_dna4};
+    std::vector<dna4> text{"ACGTACGTACGT"_dna4};
     T index{text};
 };
 
-using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>, bi_fm_index<std::vector<dna4>>>;
+using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>/*, bi_fm_index<std::vector<dna4>>*/>;
 
 TYPED_TEST_CASE(search_test, fm_index_types);
 
-template <typename text_position_t>
-inline void compare_hits(std::vector<uint64_t> const & actual, std::vector<text_position_t> const & expected)
-{
-    EXPECT_TRUE(is_set_equal(actual, expected));
-}
-
-template <fm_index_iterator_concept iterator_t, typename text_position_t>
-inline void compare_hits(std::vector<iterator_t> const & actual, std::vector<text_position_t> const & expected)
-{
-    // TODO: replace this with a nice view
-    std::vector<text_position_t> actual_located;
-    actual_located.reserve(expected.size());
-    for (iterator_t const & iter : actual)
-    {
-        auto const & pos = iter.locate();
-        actual_located.insert(actual_located.end(), pos.begin(), pos.end());
-    }
-    EXPECT_TRUE(is_set_equal(actual_located, expected));
-}
-
-template <typename actual_t, typename text_position_t>
-inline void compare_hits(std::vector<std::vector<actual_t>> const & actual,
-                         std::vector<std::vector<text_position_t>> const & expected)
-{
-    EXPECT_EQ(actual.size(), expected.size());
-    for (uint64_t i = 0; i < actual.size(); ++i)
-    {
-        compare_hits(actual[i], expected[i]);
-    }
-}
-
 TYPED_TEST(search_test, error_free)
 {
-    std::vector<dna4> query{"ACGT"_dna4};
-    std::vector<uint64_t> hits{0, 4};
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
 
     {
-        compare_hits(search(this->index, query), hits);
+        // successful and unsuccesful exact search without cfg
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4)), (hits_result_t{0, 4, 8}));
+        EXPECT_EQ(sort(search(this->index, "ACGG"_dna4)), (hits_result_t{}));
     }
 
     {
+        // successful and unsuccesful exact search with empty cfg
         detail::configuration const cfg;
-        compare_hits(search(this->index, query), hits);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8}));
+        EXPECT_EQ(sort(search(this->index, "ACGG"_dna4, cfg)), (hits_result_t{}));
     }
 
     {
-        detail::configuration const cfg = max_error(0);
-        compare_hits(search(this->index, query, cfg), hits);
+        // successful and unsuccesful exact search using max_total_error
+        detail::configuration const cfg = max_total_error(0);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8}));
+        EXPECT_EQ(sort(search(this->index, "ACGG"_dna4, cfg)), (hits_result_t{}));
     }
 
     {
-        detail::configuration const cfg = max_error_rate(.0);
-        compare_hits(search(this->index, query, cfg), hits);
+        // successful and unsuccesful exact search using max_total_error_rate
+        detail::configuration const cfg = max_total_error_rate(.0);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8}));
+        EXPECT_EQ(sort(search(this->index, "ACGG"_dna4, cfg)), (hits_result_t{}));
     }
 }
 
 TYPED_TEST(search_test, multiple_queries)
 {
-    std::vector<std::vector<dna4>> queries{{"ACGT"_dna4, "GG"_dna4, "CGTA"_dna4}};
-    std::vector<std::vector<uint64_t>> hits{{0, 4}, {}, {1}};
+    using hits_result_t = std::vector<std::vector<typename TypeParam::size_type>>;
+    std::vector<std::vector<dna4>> const queries{{"GG"_dna4, "ACGTACGTACGT"_dna4, "ACGTA"_dna4}};
 
-    detail::configuration const cfg = max_error_rate(.0);
-    compare_hits(search(this->index, queries, cfg), hits);
+    detail::configuration const cfg = max_total_error_rate(.0);
+    EXPECT_EQ(sort(search(this->index, queries, cfg)), (hits_result_t{{}, {0}, {0, 4}})); // 0, 1 and 2 hits
 }
 
 TYPED_TEST(search_test, error_substitution)
 {
-    std::vector<std::vector<dna4>> queries{{"ACGT"_dna4, "ACGGACG"_dna4, "CGTC"_dna4, "CGG"_dna4}};
-    std::vector<std::vector<uint64_t>> hits{{0, 4}, {0}, {1}, {}};
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
 
-    detail::configuration const cfg = max_error_rate(.25) | error_type(error_type_enum::substitution);
-    compare_hits(search(this->index, queries, cfg), hits);
+    {
+        detail::configuration const cfg = max_total_error_rate(.25) | max_substitution_error_rate(.25);
+
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8})); // exact match
+        EXPECT_EQ(sort(search(this->index, "CGG"_dna4     , cfg)), (hits_result_t{}));        // not enough mismatches
+        EXPECT_EQ(sort(search(this->index, "CGTC"_dna4    , cfg)), (hits_result_t{1, 5}));    // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "ACGGACG"_dna4 , cfg)), (hits_result_t{0, 4}));    // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "ACGGACGG"_dna4, cfg)), (hits_result_t{0, 4}));    // 2 mismatches
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | max_substitution_error(1);
+
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8})); // exact match
+        EXPECT_EQ(sort(search(this->index, "CGTTT"_dna4   , cfg)), (hits_result_t{}));        // not enough mismatches
+        EXPECT_EQ(sort(search(this->index, "CGG"_dna4     , cfg)), (hits_result_t{1, 5, 9})); // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "ACGGACG"_dna4 , cfg)), (hits_result_t{0, 4}));    // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "CGTCCGTA"_dna4, cfg)), (hits_result_t{1}));       // 1 mismatch
+    }
 }
 
 TYPED_TEST(search_test, error_insertion)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    {
+        detail::configuration const cfg = max_total_error_rate(.25) | max_insertion_error_rate(.25);
+
+        // exact match and insertion at the beginning of the query
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+        // 1 insertion
+        EXPECT_EQ(sort(search(this->index, "CCGT"_dna4    , cfg)), (hits_result_t{1, 5, 9}));
+        // 2 insertions
+        EXPECT_EQ(sort(search(this->index, "ACCGGTAC"_dna4, cfg)), (hits_result_t{0, 4}));
+        // 2 insertions necessary, only 1 allowed
+        EXPECT_EQ(sort(search(this->index, "ACCGG"_dna4   , cfg)), (hits_result_t{}));
+        // deletion necessary, not allowed
+        EXPECT_EQ(sort(search(this->index, "ACTACGT"_dna4 , cfg)), (hits_result_t{}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | max_insertion_error(1);
+
+        // exact match and insertion at the beginning of the query
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+        // 1 insertion
+        EXPECT_EQ(sort(search(this->index, "CCGT"_dna4    , cfg)), (hits_result_t{1, 5, 9}));
+        // 2 insertions necessary, only 1 allowed
+        EXPECT_EQ(sort(search(this->index, "ACCGGTAC"_dna4, cfg)), (hits_result_t{}));
+        // deletion necessary, not allowed
+        EXPECT_EQ(sort(search(this->index, "ACTACGT"_dna4 , cfg)), (hits_result_t{}));
+    }
 }
 
 TYPED_TEST(search_test, error_deletion)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    {
+        detail::configuration const cfg = max_total_error_rate(.25) | max_deletion_error_rate(.25);
+
+        // exact match, no deletion
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8}));
+        // not enough max errors
+        EXPECT_EQ(sort(search(this->index, "AGT"_dna4     , cfg)), (hits_result_t{}));
+        // one deletion (C)
+        EXPECT_EQ(sort(search(this->index, "AGTA"_dna4    , cfg)), (hits_result_t{0, 4}));
+        // two deletion (C)
+        EXPECT_EQ(sort(search(this->index, "AGTAGTAC"_dna4, cfg)), (hits_result_t{0}));
+        // no deletion at beginning. 0 and 4 cannot be reported
+        EXPECT_EQ(sort(search(this->index, "CGTACGT"_dna4 , cfg)), (hits_result_t{1, 5}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | max_deletion_error(1);
+
+        // exact match, no deletion
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8}));
+        // one deletion (C)
+        EXPECT_EQ(sort(search(this->index, "AGTA"_dna4    , cfg)), (hits_result_t{0, 4}));
+        // 2 deletions necessary, only 1 allowed
+        EXPECT_EQ(sort(search(this->index, "AGTAGTAC"_dna4, cfg)), (hits_result_t{}));
+        // no deletion at beginning. 0 and 4 cannot be reported
+        EXPECT_EQ(sort(search(this->index, "CGTACGT"_dna4 , cfg)), (hits_result_t{1, 5}));
+    }
 }
 
 TYPED_TEST(search_test, error_levenshtein)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    {
+        detail::configuration const cfg = max_total_error(2);
+        EXPECT_EQ(sort(search(this->index, "CCGT"_dna4, cfg)), (hits_result_t{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(2)
+                                        | max_substitution_error(2)
+                                        | max_insertion_error(2)
+                                        | max_deletion_error(2);
+        EXPECT_EQ(sort(search(this->index, "CCGT"_dna4, cfg)), (hits_result_t{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    }
 }
 
 TYPED_TEST(search_test, search_strategy_all)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    {
+        detail::configuration const cfg = max_total_error(1);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_all();
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+    }
 }
 
 TYPED_TEST(search_test, search_strategy_best)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    detail::configuration const cfg = max_total_error(1) | strategy_best();
+    hits_result_t possible_hits{0, 4, 8}; // 1, 5, 9 are not best hits
+    hits_result_t result = search(this->index, "ACGT"_dna4, cfg);
+    ASSERT_EQ(result.size(), 1);
+    // any of 0, 4, 8
+    EXPECT_TRUE(std::find(possible_hits.begin(), possible_hits.end(), result[0]) != possible_hits.end());
 }
 
 TYPED_TEST(search_test, search_strategy_all_best)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    detail::configuration const cfg = max_total_error(1) | strategy_all_best();
+    EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8})); // 1, 5, 9 are not best hits
 }
 
 TYPED_TEST(search_test, search_strategy_strata)
 {
+    using hits_result_t = std::vector<typename TypeParam::size_type>;
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_strata(0);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_strata(1);
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+    }
+
+    // {
+    //     // best hit ACGT with 1 error, i.e. 1+1
+    //     detail::configuration const cfg = max_total_error(1) | strategy_strata(1);
+    //     EXPECT_EQ(sort(search(this->index, "CCGT"_dna4, cfg)), (hits_result_t{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    // }
+
+    // {
+    //     // best hit ACGT with 1 error, i.e. 1+1
+    //     detail::configuration const cfg = max_total_error(1) | strategy_strata(1);
+    //     EXPECT_EQ(sort(search(this->index, "CCGT"_dna4, cfg)), (hits_result_t{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    // }
 }
 
-TYPED_TEST(search_test, return_iterator)
-{
-}
-
-TYPED_TEST(search_test, on_hit)
-{
-}
+// TYPED_TEST(search_test, return_iterator_index)
+// {
+// }
+//
+// TYPED_TEST(search_test, on_hit)
+// {
+// }

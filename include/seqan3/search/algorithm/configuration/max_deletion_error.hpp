@@ -33,83 +33,79 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the search strategy configuration "all".
+ * \brief Provides the configuration for maximum number of deletion errors.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
 #pragma once
 
-#include <seqan3/search/configuration/utility.hpp>
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>
-
-/*!\addtogroup search
- * \{
- */
+#include <seqan3/search/algorithm/configuration/utility.hpp>
 
 namespace seqan3::detail
 {
-/*!\brief Configuration element to receive all possible hits.
+/*!\brief A configuration element for the maximum number of deletion errors.
  * \ingroup search_configuration
  */
-struct search_config_strategy_all
+struct search_config_max_deletion_error
 {
-    //!\cond
-    bool value{true};
-    //!\endcond
+    //!\brief The actual value.
+    uint8_t value;
 };
 
-/*!\brief The seqan3::search_cfg::strategy_all adaptor enabling pipe notation.
+/*!\brief The max_deletion_error adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_strategy_all_adaptor : public configuration_fn_base<search_config_strategy_all_adaptor>
+struct search_config_max_deletion_error_adaptor : public configuration_fn_base<search_config_max_deletion_error_adaptor>
 {
 
-    /*!\brief Adds to the configuration the seqan3::search_cfg::strategy_all configuration element.
-     * \param[in] cfg The configuration to be extended.
-     * \returns A new configuration containing the seqan3::search_cfg::strategy_all configuration element.
+    /*!\brief Adds to the configuration a max_deletion_error configuration element.
+     * \relates seqan3::search_config_max_deletion_error
+     * \param[in] cfg  The configuration to be extended.
+     * \param[in] nbr The number of maximum deletion errors used for the algorithm.
+     * \returns A new configuration containing the max_deletion_error configuration element.
      */
     template <typename configuration_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg) const
+    constexpr auto invoke(configuration_t && cfg, uint8_t const nbr) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::strategy_all, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::strategy_all));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::max_deletion_error, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_deletion_error));
 
-        return std::forward<configuration_t>(cfg).push_front(search_config_strategy_all{});
+        search_config_max_deletion_error tmp{nbr};
+        return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_strategy_all.
+//!\brief Helper template meta-function associated with detail::search_config_max_deletion_error.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::strategy_all>
+struct on_search_config<search_cfg::id::max_deletion_error>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_strategy_all>::type;
+    using invoke = typename std::is_same<t, search_config_max_deletion_error>::type;
 };
 
-//!\brief Mapping from the detail::search_config_strategy_all type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_max_deletion_error type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_strategy_all>
+struct search_config_type_to_id<search_config_max_deletion_error>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::strategy_all;
+    static constexpr search_cfg::id value = search_cfg::id::max_deletion_error;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief Configuration element to receive all possible hits.
+/*!\brief A configuration element for the maximum number of deletion errors.
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_strategy_all_adaptor strategy_all;
+inline constexpr detail::search_config_max_deletion_error_adaptor max_deletion_error;
 
 } // namespace seqan3::search_cfg
-
-//!\}
