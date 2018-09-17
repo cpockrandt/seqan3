@@ -80,8 +80,7 @@ namespace seqan3::detail
 
 namespace seqan3::detail
 {
-    template <bool substitution, bool insertion, bool deletion, bool allow_insertion, bool allow_deletion,
-              bool abort_on_hit>
+    template <bool abort_on_hit>
     auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, search_params error_left,
                          auto && delegate)
     {
@@ -94,46 +93,37 @@ namespace seqan3::detail
                 if constexpr (abort_on_hit)
                     return true;
                 else
-                    return; // specify return type before recursive calls
+                    return; // specify return type "void" before recursive calls
             }
         }
         // Approximate case
         else
         {
             // Insertion
-            if constexpr (insertion && allow_insertion)
+            if (error_left.insertion > 0)
             {
-                if (error_left.insertion > 0)
-                {
-                    search_params error_left2{error_left};
-                    error_left2.insertion--;
-                    error_left2.total--;
+                search_params error_left2{error_left};
+                error_left2.insertion--;
+                error_left2.total--;
 
-                    // do not allow deletion in the next step
-                    if constexpr (abort_on_hit)
-                    {
-                        bool ret = _search_trivial<substitution, insertion, deletion, true, false, abort_on_hit>(it,
-                            query, query_pos + 1, error_left2, delegate);
-                        if (ret)
-                            return true;
-                    }
-                    else
-                    {
-                        _search_trivial<substitution, insertion, deletion, true, false, abort_on_hit>(it,
-                            query, query_pos + 1, error_left2, delegate);
-                    }
+                // do not allow deletion in the next step
+                if constexpr (abort_on_hit)
+                {
+                    if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate))
+                        return true;
+                }
+                else
+                {
+                    _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate);
                 }
             }
 
-            // TODO: Da allow_deletion false is auf erster Position, wird hier gar nichts gemacht und nicht in den else reingegeangen
-            if (((deletion && allow_deletion && error_left.deletion > 0) ||
-                 (substitution && error_left.substitution > 0)) &&
-                it.extend_right())
+            if (((query_pos > 0 && error_left.deletion > 0) || error_left.substitution > 0) && it.extend_right())
             {
                 do
                 {
                     // Match / Mismatch
-                    if constexpr (substitution)
+                    if (error_left.substitution > 0)
                     {
                         bool delta = it.last_char() != query[query_pos];
                         search_params error_left2{error_left};
@@ -142,35 +132,29 @@ namespace seqan3::detail
 
                         if constexpr (abort_on_hit)
                         {
-                            bool ret = _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                                query, query_pos + 1, error_left2, delegate);
-                            if (ret)
+                            if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate))
                                 return true;
                         }
                         else
                         {
-                            _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                                query, query_pos + 1, error_left2, delegate);
+                            _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate);
                         }
                     }
 
                     // Deletion
-                    if constexpr (deletion && allow_deletion)
+                    if (query_pos > 0) // do not allow deletions at the beginning of the query
                     {
                         // Match
-                        if (!substitution && it.last_char() == query[query_pos])
+                        if (error_left.substitution == 0 && it.last_char() == query[query_pos])
                         {
                             if constexpr (abort_on_hit)
                             {
-                                bool ret = _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                                        query, query_pos + 1, error_left, delegate);
-                                if (ret)
+                                if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate))
                                     return true;
                             }
                             else
                             {
-                                _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                                    query, query_pos + 1, error_left, delegate);
+                                _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate);
                             }
                         }
 
@@ -183,15 +167,12 @@ namespace seqan3::detail
                             // do not allow deletion in the next step
                             if constexpr (abort_on_hit)
                             {
-                                bool ret = _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
-                                    query, query_pos, error_left2, delegate);
-                                if (ret)
+                                if (_search_trivial<abort_on_hit>(it, query, query_pos, error_left2, delegate))
                                     return true;
                             }
                             else
                             {
-                                _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
-                                    query, query_pos, error_left2, delegate);
+                                _search_trivial<abort_on_hit>(it, query, query_pos, error_left2, delegate);
                             }
                         }
                     }
@@ -205,15 +186,12 @@ namespace seqan3::detail
                 {
                     if constexpr (abort_on_hit)
                     {
-                        bool ret = _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                                query, query_pos + 1, error_left, delegate);
-                        if (ret)
+                        if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate))
                             return true;
                     }
                     else
                     {
-                        _search_trivial<substitution, insertion, deletion, true, true, abort_on_hit>(it,
-                            query, query_pos + 1, error_left, delegate);
+                        _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate);
                     }
                 }
             }
@@ -223,16 +201,8 @@ namespace seqan3::detail
     template <bool substitution, bool insertion, bool deletion, bool abort_on_hit, typename TIndex, typename TQuery, typename TDelegate>
     inline void search_trivial(TIndex const & index, TQuery const & query, search_params error_left, TDelegate && delegate)
     {
-        // <substitution, insertion, deletion, allow_insertion, allow_deletion, abort_on_hit>
-        // do not allow deletions at the beginning of the query
-        // std::cout << "Errors: "
-        //           << (unsigned)error_left.total << ", "
-        //           << (unsigned)error_left.substitution << ", "
-        //           << (unsigned)error_left.insertion << ", "
-        //           << (unsigned)error_left.deletion << '\n';
-        // std::cout << "<" << substitution << ", " << insertion << ", " << deletion << ">\n";
-        _search_trivial<substitution, insertion, deletion, true, false, abort_on_hit>(index.begin(),
-            query, 0, error_left, delegate);
+        // <abort_on_hit>
+        _search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, delegate);
     }
 
 }
