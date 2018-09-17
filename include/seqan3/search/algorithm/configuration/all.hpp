@@ -32,12 +32,12 @@
 //
 // ============================================================================
 
- /*!\file
-  * \brief Meta-header for the \link search_configuration search configuration module \endlink.
-  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
-  */
+/*!\file
+ * \brief Meta-header for the \link search_configuration search configuration module \endlink.
+ * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
+ */
 
- #pragma once
+#pragma once
 
 /*!\defgroup search_configuration Configuration
  * \brief Data structures and utility functions for configuring search algorithm.

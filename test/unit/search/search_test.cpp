@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <type_traits>
 
+#include "helper.hpp"
+
 #include <seqan3/search/algorithm/all.hpp>
 
 #include <gtest/gtest.h>
@@ -44,21 +46,6 @@ using namespace seqan3::literal;
 using namespace seqan3::search_cfg;
 
 template <typename T>
-std::vector<T> sort(std::vector<T> v)
-{
-    std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end()); // TODO: remove once duplicates are filtered
-    return v;
-}
-
-template <typename T>
-std::vector<std::vector<T>> sort(std::vector<std::vector<T>> v)
-{
-    std::for_each(v.begin(), v.end(), [](auto & hits) { sort(hits); } );
-    return v;
-}
-
-template <typename T>
 class search_test : public ::testing::Test
 {
 public:
@@ -66,7 +53,7 @@ public:
     T index{text};
 };
 
-using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>/*, bi_fm_index<std::vector<dna4>>*/>;
+using fm_index_types = ::testing::Types<fm_index<std::vector<dna4>>, bi_fm_index<std::vector<dna4>>>;
 
 TYPED_TEST_CASE(search_test, fm_index_types);
 
@@ -127,6 +114,17 @@ TYPED_TEST(search_test, error_substitution)
 
     {
         detail::configuration const cfg = max_total_error(1) | max_substitution_error(1);
+
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8})); // exact match
+        EXPECT_EQ(sort(search(this->index, "CGTTT"_dna4   , cfg)), (hits_result_t{}));        // not enough mismatches
+        EXPECT_EQ(sort(search(this->index, "CGG"_dna4     , cfg)), (hits_result_t{1, 5, 9})); // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "ACGGACG"_dna4 , cfg)), (hits_result_t{0, 4}));    // 1 mismatch
+        EXPECT_EQ(sort(search(this->index, "CGTCCGTA"_dna4, cfg)), (hits_result_t{1}));       // 1 mismatch
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | max_substitution_error(1)
+                                        | max_insertion_error(0) | max_deletion_error(0);
 
         EXPECT_EQ(sort(search(this->index, "ACGT"_dna4    , cfg)), (hits_result_t{0, 4, 8})); // exact match
         EXPECT_EQ(sort(search(this->index, "CGTTT"_dna4   , cfg)), (hits_result_t{}));        // not enough mismatches
@@ -239,20 +237,33 @@ TYPED_TEST(search_test, search_strategy_best)
 {
     using hits_result_t = std::vector<typename TypeParam::size_type>;
 
-    detail::configuration const cfg = max_total_error(1) | strategy_best();
-    hits_result_t possible_hits{0, 4, 8}; // 1, 5, 9 are not best hits
-    hits_result_t result = search(this->index, "ACGT"_dna4, cfg);
-    ASSERT_EQ(result.size(), 1);
-    // any of 0, 4, 8
-    EXPECT_TRUE(std::find(possible_hits.begin(), possible_hits.end(), result[0]) != possible_hits.end());
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_best();
+        hits_result_t possible_hits{0, 4, 8}; // any of 0, 4, 8 ... 1, 5, 9 are not best hits
+        hits_result_t result = search(this->index, "ACGT"_dna4, cfg);
+        ASSERT_EQ(result.size(), 1);
+        EXPECT_TRUE(std::find(possible_hits.begin(), possible_hits.end(), result[0]) != possible_hits.end());
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_best();
+        EXPECT_EQ(search(this->index, "AAAA"_dna4, cfg), (hits_result_t{})); // no hit
+    }
 }
 
 TYPED_TEST(search_test, search_strategy_all_best)
 {
     using hits_result_t = std::vector<typename TypeParam::size_type>;
 
-    detail::configuration const cfg = max_total_error(1) | strategy_all_best();
-    EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8})); // 1, 5, 9 are not best hits
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_all_best();
+        EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 4, 8})); // 1, 5, 9 are not best hits
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_all_best();
+        EXPECT_EQ(search(this->index, "AAAA"_dna4, cfg), (hits_result_t{})); // no hit
+    }
 }
 
 TYPED_TEST(search_test, search_strategy_strata)
@@ -267,6 +278,11 @@ TYPED_TEST(search_test, search_strategy_strata)
     {
         detail::configuration const cfg = max_total_error(1) | strategy_strata(1);
         EXPECT_EQ(sort(search(this->index, "ACGT"_dna4, cfg)), (hits_result_t{0, 1, 4, 5, 8, 9}));
+    }
+
+    {
+        detail::configuration const cfg = max_total_error(1) | strategy_strata(1);
+        EXPECT_EQ(search(this->index, "AAAA"_dna4, cfg), (hits_result_t{})); // no hit
     }
 
     // {

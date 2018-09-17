@@ -217,12 +217,10 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
 }
 
 template <bool substitution, bool insertion, bool deletion, typename index_t, typename queries_t, typename config_t>
-//!\cond
     requires
         (std::ranges::RandomAccessRange<queries_t> ||
             (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)) &&
         detail::is_algorithm_configuration_v<remove_cvref_t<config_t>>
-//!\endcond
 inline auto search(index_t const & index, queries_t const & queries, config_t const & cfg)
 {
     // return type: for each query: a vector of text_position (or iterators) and number of errors spent
@@ -267,6 +265,6 @@ inline auto search(index_t const & index, queries_t const & queries, config_t co
     //     }
 }
 
-}
+} // namespace seqan3::detail
 
 //!\endcond

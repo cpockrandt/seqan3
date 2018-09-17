@@ -90,7 +90,6 @@ namespace seqan3::detail
         {
             if (query_pos == query.size() || it.extend_right(ranges::view::drop_exactly(query, query_pos)))
             {
-                // TODO: pass query_pos
                 delegate(it/*, error_left.total*/);
                 if constexpr (abort_on_hit)
                     return true;
@@ -175,22 +174,25 @@ namespace seqan3::detail
                             }
                         }
 
-                        search_params error_left2{error_left};
-                        error_left2.total--;
-                        error_left2.deletion--;
+                        if (error_left.deletion > 0)
+                        {
+                            search_params error_left2{error_left};
+                            error_left2.total--;
+                            error_left2.deletion--;
 
-                        // do not allow deletion in the next step
-                        if constexpr (abort_on_hit)
-                        {
-                            bool ret = _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
-                                query, query_pos, error_left2, delegate);
-                            if (ret)
-                                return true;
-                        }
-                        else
-                        {
-                            _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
-                                query, query_pos, error_left2, delegate);
+                            // do not allow deletion in the next step
+                            if constexpr (abort_on_hit)
+                            {
+                                bool ret = _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
+                                    query, query_pos, error_left2, delegate);
+                                if (ret)
+                                    return true;
+                            }
+                            else
+                            {
+                                _search_trivial<substitution, insertion, deletion, false, true, abort_on_hit>(it,
+                                    query, query_pos, error_left2, delegate);
+                            }
                         }
                     }
                 }

@@ -50,6 +50,14 @@ template <typename T>
 std::vector<T> sort(std::vector<T> v)
 {
     std::sort(v.begin(), v.end());
+    v.erase(std::unique(v.begin(), v.end()), v.end()); // TODO: remove once duplicates are filtered
+    return v;
+}
+
+template <typename T>
+std::vector<std::vector<T>> sort(std::vector<std::vector<T>> v)
+{
+    std::for_each(v.begin(), v.end(), [](auto & hits) { sort(hits); } );
     return v;
 }
 
