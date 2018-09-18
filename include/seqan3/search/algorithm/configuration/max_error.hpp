@@ -63,7 +63,7 @@ struct total : detail::strong_type<value_t, total<value_t>, detail::strong_type_
  * \{
  */
 template <typename value_t>
-total(value_t &&) -> total<value_t>;
+total(value_t &&) -> total<remove_cvref_t<value_t>>;
 //!\}
 
 /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of
@@ -82,7 +82,7 @@ struct substitution : detail::strong_type<value_t, substitution<value_t>, detail
  * \{
  */
 template <typename value_t>
-substitution(value_t &&) -> substitution<value_t>;
+substitution(value_t &&) -> substitution<remove_cvref_t<value_t>>;
 //!\}
 
 /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of insertions.
@@ -100,7 +100,7 @@ struct insertion : detail::strong_type<value_t, insertion<value_t>, detail::stro
  * \{
  */
 template <typename value_t>
-insertion(value_t &&) -> insertion<value_t>;
+insertion(value_t &&) -> insertion<remove_cvref_t<value_t>>;
 //!\}
 
 /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of deletions.
@@ -118,7 +118,7 @@ struct deletion : detail::strong_type<value_t, deletion<value_t>, detail::strong
  * \{
  */
 template <typename value_t>
-deletion(value_t &&) -> deletion<value_t>;
+deletion(value_t &&) -> deletion<remove_cvref_t<value_t>>;
 //!\}
 
 } // namespace seqan3::search_cfg
