@@ -48,6 +48,9 @@ using namespace seqan3::search_cfg;
 namespace seqan3
 {
 
+template <class a>
+struct nothing;
+
 template <typename index_t, typename queries_t, typename config_t>
 //!\cond
     requires
@@ -82,7 +85,24 @@ inline auto search(index_t const & index, queries_t const & queries, config_t co
     //         return detail::search<true, true, true>(index, queries, cfg2);
     //     }
     // }
-    return detail::_search(index, queries, cfg);
+    if constexpr (contains<id::mode>(cfg))
+    {
+        return detail::_search(index, queries, cfg);
+    }
+    else
+    {
+        // TODO: overload pipe operator for empty config object
+        if constexpr (std::Same<remove_cvref_t<decltype(cfg)>, detail::configuration<>>)
+        {
+            detail::configuration const cfg2 = mode(all);
+            return detail::_search(index, queries, cfg2);
+        }
+        else
+        {
+            detail::configuration const cfg2 = cfg | mode(all);
+            return detail::_search(index, queries, cfg2);
+        }
+    }
 }
 
 // DOC: insertion/deletion are with resp. to the query. i.e. an insertion is the insertion of a base into the query

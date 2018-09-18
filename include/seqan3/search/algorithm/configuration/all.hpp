@@ -48,13 +48,10 @@
 
 #include <seqan3/search/algorithm/configuration/max_error.hpp>
 #include <seqan3/search/algorithm/configuration/max_error_rate.hpp>
+#include <seqan3/search/algorithm/configuration/mode.hpp>
 #include <seqan3/search/algorithm/configuration/on_hit.hpp>
 #include <seqan3/search/algorithm/configuration/output_index_iterator.hpp>
 #include <seqan3/search/algorithm/configuration/output_text_position.hpp>
-#include <seqan3/search/algorithm/configuration/strategy_all_best.hpp>
-#include <seqan3/search/algorithm/configuration/strategy_all.hpp>
-#include <seqan3/search/algorithm/configuration/strategy_best.hpp>
-#include <seqan3/search/algorithm/configuration/strategy_strata.hpp>
 #include <seqan3/search/algorithm/configuration/utility.hpp>
 
 /*!\namespace seqan3::search_cfg

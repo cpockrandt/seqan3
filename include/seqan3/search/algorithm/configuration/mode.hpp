@@ -50,56 +50,88 @@
 
 namespace seqan3::detail
 {
+
+struct search_mode_all {};
+
+struct search_mode_all_best {};
+
+struct search_mode_best {};
+
+} // namespace seqan3::detail
+
+namespace seqan3::search_cfg
+{
+
+inline detail::search_mode_all constexpr all;
+inline detail::search_mode_all_best constexpr all_best;
+inline detail::search_mode_best constexpr best;
+
+/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of total errors.
+ * \tparam value_t The underlying type
+ * \ingroup search_configuration
+ */
+struct strata : detail::strong_type<uint8_t, strata, detail::strong_type_skill::convert>
+{
+    using detail::strong_type<uint8_t, strata, detail::strong_type_skill::convert>::strong_type;
+};
+
+} // namespace seqan3::search_cfg
+
+namespace seqan3::detail
+{
 /*!\brief Configuration element to receive all possible hits.
  * \ingroup search_configuration
  */
-struct search_config_strategy_all
+template <typename mode_t>
+struct search_config_mode
 {
     //!\cond
-    static constexpr bool value{true};
+    mode_t value;
     //!\endcond
 };
 
-/*!\brief The seqan3::search_cfg::strategy_all adaptor enabling pipe notation.
+/*!\brief The seqan3::search_cfg::mode adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_strategy_all_adaptor : public configuration_fn_base<search_config_strategy_all_adaptor>
+template <template <typename ...> typename search_config_mode_type>
+struct search_config_mode_adaptor : public configuration_fn_base<search_config_mode_adaptor<search_config_mode>>
 {
 
-    /*!\brief Adds to the configuration the seqan3::search_cfg::strategy_all configuration element.
+    /*!\brief Adds to the configuration the seqan3::search_cfg::mode configuration element.
      * \param[in] cfg The configuration to be extended.
-     * \returns A new configuration containing the seqan3::search_cfg::strategy_all configuration element.
+     * \returns A new configuration containing the seqan3::search_cfg::mode configuration element.
      */
-    template <typename configuration_t>
+    template <typename configuration_t, typename mode_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg) const
+    // TODO: require strong type
+    constexpr auto invoke(configuration_t && cfg, mode_t mode) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::strategy_all, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::strategy_all));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::mode, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::mode));
 
-        return std::forward<configuration_t>(cfg).push_front(search_config_strategy_all{});
+        return std::forward<configuration_t>(cfg).push_front(search_config_mode<mode_t>{std::move(mode)});
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_strategy_all.
+//!\brief Helper template meta-function associated with detail::search_config_mode.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::strategy_all>
+struct on_search_config<search_cfg::id::mode>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_strategy_all>::type;
+    using invoke = typename is_type_specialisation_of<t, search_config_mode>::type;
 };
 
-//!\brief Mapping from the detail::search_config_strategy_all type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_mode type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
-template <>
-struct search_config_type_to_id<search_config_strategy_all>
+template <typename mode_t>
+struct search_config_type_to_id<search_config_mode<mode_t>>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::strategy_all;
+    static constexpr search_cfg::id value = search_cfg::id::mode;
 };
 } // namespace seqan3::detail
 
@@ -108,7 +140,7 @@ namespace seqan3::search_cfg
 /*!\brief Configuration element to receive all possible hits.
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_strategy_all_adaptor strategy_all;
+inline detail::search_config_mode_adaptor<seqan3::detail::search_config_mode> constexpr mode;
 
 } // namespace seqan3::search_cfg
 

@@ -39,8 +39,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <seqan3/core/metafunction/pre.hpp>
 #include <seqan3/search/algorithm/detail/search_trivial.hpp>
 
@@ -151,7 +149,8 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
     };
 
     // choose strategy
-    if constexpr (contains<id::strategy_best>(cfg))
+    auto const & selected_mode = seqan3::get<id::mode>(cfg);
+    if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_best>)
     {
         detail::search_params max_error2{max_error};
         max_error2.total = 0;
@@ -161,7 +160,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
             max_error2.total++;
         }
     }
-    else if constexpr (contains<id::strategy_all_best>(cfg))
+    else if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_all_best>)
     {
         detail::search_params max_error2{max_error};
         max_error2.total = 0;
@@ -171,7 +170,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
             max_error2.total++;
         }
     }
-    else if constexpr (contains<id::strategy_strata>(cfg))
+    else if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, strata>)
     {
         detail::search_params max_error2{max_error};
         max_error2.total = 0;
@@ -183,12 +182,12 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         if (!internal_hits.empty())
         {
             internal_hits.clear(); // don't clear when using Optimum Search Schemes with lower error bounds
-            uint8_t const s = seqan3::get<id::strategy_strata>(cfg);
+            uint8_t const s = selected_mode;
             max_error2.total += s - 1;
             detail::search_trivial<false>(index, query, max_error2, internal_delegate);
         }
     }
-    else // "strategy_all" or not specified
+    else // if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_all>)
     {
         detail::search_trivial<false>(index, query, max_error, internal_delegate);
     }
@@ -206,7 +205,8 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         std::vector<typename index_t::size_type> hits;
         // std::vector<std::tuple<typename index_t::size_type, detail::search_params>> hits;
         // for (auto const & [it, error] : internal_hits)
-        if constexpr (contains<id::strategy_best>(cfg))
+        auto const & selected_mode = seqan3::get<id::mode>(cfg);
+        if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_best>)
         {
             // only one iterator is reported but it might contain more than one text position
             if (!internal_hits.empty())
@@ -218,9 +218,13 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         else
         {
             for (auto const & it : internal_hits)
+            {
                 for (auto const & text_pos : it.locate())
                     hits.push_back(text_pos);
                     // hits.push_back({text_pos, error});
+                std::sort(hits.begin(), hits.end());
+                hits.erase(std::unique(hits.begin(), hits.end()), hits.end());
+            }
         }
         return hits;
     }

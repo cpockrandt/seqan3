@@ -71,10 +71,7 @@ enum struct id : uint8_t
     on_hit,
     output_index_iterator,
     output_text_position,
-    strategy_all,
-    strategy_all_best,
-    strategy_best,
-    strategy_strata,
+    mode,
     //!\cond
     // ATTENTION: Must always be the last item; will be used to determine the number of ids.
     SIZE
@@ -175,18 +172,13 @@ inline constexpr std::array<std::array<bool, static_cast<uint8_t>(search_cfg::id
                             static_cast<uint8_t>(search_cfg::id::SIZE)> search_config_validation_matrix =
 {
     {
-        // max_deletion_error, max_deletion_error_rate, max_insertion_error, max_insertion_error_rate,
-        // max_substitution_error, max_substitution_error_rate, max_total_error, max_total_error_rate, on_hit,
-        // output_index_iterator, output_text_position, strategy_all, strategy_all_best, strategy_best, strategy_strata
-        { 0, 0, 1, 1, 1, 1, 1, 1, 1 },
-        { 0, 0, 1, 1, 1, 1, 1, 1, 1 },
-        { 1, 1, 0, 1, 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 0, 0, 1, 1, 1, 1 },
-        { 1, 1, 1, 0, 0, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1, 0, 0, 0, 0 },
-        { 1, 1, 1, 1, 1, 0, 0, 0, 0 },
-        { 1, 1, 1, 1, 1, 0, 0, 0, 0 },
-        { 1, 1, 1, 1, 1, 0, 0, 0, 0 }
+        // max_error, max_error_rate, on_hit, output_index_iterator, output_text_position, mode
+        { 0, 0, 1, 1, 1, 1 },
+        { 0, 0, 1, 1, 1, 1 },
+        { 1, 1, 0, 1, 1, 1 },
+        { 1, 1, 1, 0, 0, 1 },
+        { 1, 1, 1, 0, 0, 1 },
+        { 1, 1, 1, 1, 1, 0 }
     }
 };
 
