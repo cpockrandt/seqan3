@@ -115,11 +115,6 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         max_error.deletion = std::get<3>(t) * query.size();
     }
 
-    // std::cout << (unsigned) max_error.total << ' '
-    //           << (unsigned) max_error.substitution << ' '
-    //           << (unsigned) max_error.insertion << ' '
-    //           << (unsigned) max_error.deletion << '\n';
-
     // TODO: this would be a lot nicer if all errors would either be ints or doubles and nothing mixed
     // total not set but other error types
     // if constexpr (!contains<id::max_total_error_rate>(cfg) && !contains<id::max_total_error>(cfg) &&
@@ -202,7 +197,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
     // _filter_hits(hits);
 
     // output iterators or text_positions
-    if constexpr (contains<id::return_index_iterator>(cfg))
+    if constexpr (contains<id::output_index_iterator>(cfg))
     {
         return internal_hits;
     }
@@ -241,7 +236,7 @@ inline auto _search(index_t const & index, queries_t const & queries, config_t c
     // return type: for each query: a vector of text_position (or iterators) and number of errors spent
     // delegate params: text_position (or iterator), number of errors spent and query id. (TODO: or return vector)
     //                  we will withhold all hits of one query anyway to filter duplicates. more efficient to call delegate once with one vector instead of calling delegate for each hit separately at once.
-    using hit_t = std::conditional_t<contains<id::return_index_iterator>(cfg),
+    using hit_t = std::conditional_t<contains<id::output_index_iterator>(cfg),
                                      typename index_t::iterator_type,
                                      typename index_t::size_type>;
 

@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the configuration for returning FM index iterators.
+ * \brief Provides the configuration for returning positions in the text.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -50,26 +50,25 @@
 
 namespace seqan3::detail
 {
-/*!\brief Configuration element to specify the return type of the hits as FM index iterators.
- *        The iterator type will be the default iterator type of the index, i.e. index_t::iterator_type
+/*!\brief Configuration element to specify the return type of the hits as positions in the indexed text.
  * \ingroup search_configuration
  */
-struct search_config_return_index_iterator
+struct search_config_output_text_position
 {
     //!\cond
-    bool value{true};
+    static constexpr bool value{true};
     //!\endcond
 };
 
-/*!\brief The seqan3::search_cfg::return_index_iterator adaptor enabling pipe notation.
+/*!\brief The seqan3::search_cfg::output_text_position adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_return_index_iterator_adaptor : public configuration_fn_base<search_config_return_index_iterator_adaptor>
+struct search_config_output_text_position_adaptor : public configuration_fn_base<search_config_output_text_position_adaptor>
 {
 
-    /*!\brief Adds to the configuration the seqan3::search_cfg::return_index_iterator configuration element.
+    /*!\brief Adds to the configuration the seqan3::search_cfg::output_text_position configuration element.
      * \param[in] cfg The configuration to be extended.
-     * \returns A new configuration containing the seqan3::search_cfg::return_index_iterator configuration element.
+     * \returns A new configuration containing the seqan3::search_cfg::output_text_position configuration element.
      */
     template <typename configuration_t>
     //!\cond
@@ -77,40 +76,39 @@ struct search_config_return_index_iterator_adaptor : public configuration_fn_bas
     //!\endcond
     constexpr auto invoke(configuration_t && cfg) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::return_index_iterator, remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::return_index_iterator));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::output_text_position, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::output_text_position));
 
-        return std::forward<configuration_t>(cfg).push_front(search_config_return_index_iterator{});
+        return std::forward<configuration_t>(cfg).push_front(search_config_output_text_position{});
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_return_index_iterator.
+//!\brief Helper template meta-function associated with detail::search_config_output_text_position.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::return_index_iterator>
+struct on_search_config<search_cfg::id::output_text_position>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_return_index_iterator>::type;
+    using invoke = typename std::is_same<t, search_config_output_text_position>::type;
 };
 
-//!\brief Mapping from the detail::search_config_return_index_iterator type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_output_text_position type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_return_index_iterator>
+struct search_config_type_to_id<search_config_output_text_position>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::return_index_iterator;
+    static constexpr search_cfg::id value = search_cfg::id::output_text_position;
 };
 } // namespace seqan3::detail
 
 namespace seqan3::search_cfg
 {
-/*!\brief Configuration element to specify the return type of the hits as FM index iterators.
- *        The iterator type will be the default iterator type of the index, i.e. index_t::iterator_type
+/*!\brief Configuration element to specify the return type of the hits as positions in the indexed text.
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_return_index_iterator_adaptor return_index_iterator;
+inline constexpr detail::search_config_output_text_position_adaptor output_text_position;
 
 } // namespace seqan3::search_cfg
 

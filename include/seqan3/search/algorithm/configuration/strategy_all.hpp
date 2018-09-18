@@ -56,7 +56,7 @@ namespace seqan3::detail
 struct search_config_strategy_all
 {
     //!\cond
-    bool value{true};
+    static constexpr bool value{true};
     //!\endcond
 };
 

@@ -48,78 +48,79 @@
 namespace seqan3::search_cfg
 {
 
-    /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of total errors.
-     * \tparam T The underlying type
-     * \ingroup search_configuration
-     */
-    template <typename T>
-    struct total : detail::strong_type<T, total<T>, detail::strong_type_skill::convert>
-    {
-        using detail::strong_type<T, total<T>, detail::strong_type_skill::convert>::strong_type;
-    };
+/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of total errors.
+ * \tparam value_t The underlying type
+ * \ingroup search_configuration
+ */
+template <typename value_t>
+struct total : detail::strong_type<value_t, total<value_t>, detail::strong_type_skill::convert>
+{
+    using detail::strong_type<value_t, total<value_t>, detail::strong_type_skill::convert>::strong_type;
+};
 
-    /*!\name Template argument type deduction guides
-     * \relates seqan3::search_cfg::total
-     * \{
-     */
-    template <typename T>
-    total(T &&) -> total<T>;
-    //!\}
+/*!\name Template argument type deduction guides
+ * \relates seqan3::search_cfg::total
+ * \{
+ */
+template <typename value_t>
+total(value_t &&) -> total<value_t>;
+//!\}
 
-    /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of
-     *        substitutions.
-     * \tparam T The underlying type
-     * \ingroup search_configuration
-     */
-    template <typename T>
-    struct substitution : detail::strong_type<T, substitution<T>, detail::strong_type_skill::convert>
-    {
-        using detail::strong_type<T, substitution<T>, detail::strong_type_skill::convert>::strong_type;
-    };
+/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of
+ *        substitutions.
+ * \tparam value_t The underlying type
+ * \ingroup search_configuration
+ */
+template <typename value_t>
+struct substitution : detail::strong_type<value_t, substitution<value_t>, detail::strong_type_skill::convert>
+{
+    using detail::strong_type<value_t, substitution<value_t>, detail::strong_type_skill::convert>::strong_type;
+};
 
-    /*!\name Template argument type deduction guides
-     * \relates seqan3::search_cfg::substitution
-     * \{
-     */
-    template <typename T>
-    substitution(T &&) -> substitution<T>;
-    //!\}
+/*!\name Template argument type deduction guides
+ * \relates seqan3::search_cfg::substitution
+ * \{
+ */
+template <typename value_t>
+substitution(value_t &&) -> substitution<value_t>;
+//!\}
 
-    /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of insertions.
-     * \tparam T The underlying type
-     * \ingroup search_configuration
-     */
-    template <typename T>
-    struct insertion : detail::strong_type<T, insertion<T>, detail::strong_type_skill::convert>
-    {
-        using detail::strong_type<T, insertion<T>, detail::strong_type_skill::convert>::strong_type;
-    };
+/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of insertions.
+ * \tparam value_t The underlying type
+ * \ingroup search_configuration
+ */
+template <typename value_t>
+struct insertion : detail::strong_type<value_t, insertion<value_t>, detail::strong_type_skill::convert>
+{
+    using detail::strong_type<value_t, insertion<value_t>, detail::strong_type_skill::convert>::strong_type;
+};
 
-    /*!\name Template argument type deduction guides
-     * \relates seqan3::search_cfg::total
-     * \{
-     */
-    template <typename T>
-    insertion(T &&) -> insertion<T>;
-    //!\}
+/*!\name Template argument type deduction guides
+ * \relates seqan3::search_cfg::total
+ * \{
+ */
+template <typename value_t>
+insertion(value_t &&) -> insertion<value_t>;
+//!\}
 
-    /*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of deletions.
-     * \tparam T The underlying type
-     * \ingroup search_configuration
-     */
-    template <typename T>
-    struct deletion : detail::strong_type<T, deletion<T>, detail::strong_type_skill::convert>
-    {
-        using detail::strong_type<T, deletion<T>, detail::strong_type_skill::convert>::strong_type;
-    };
+/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of deletions.
+ * \tparam value_t The underlying type
+ * \ingroup search_configuration
+ */
+template <typename value_t>
+struct deletion : detail::strong_type<value_t, deletion<value_t>, detail::strong_type_skill::convert>
+{
+    using detail::strong_type<value_t, deletion<value_t>, detail::strong_type_skill::convert>::strong_type;
+};
 
-    /*!\name Template argument type deduction guides
-     * \relates seqan3::search_cfg::deletion
-     * \{
-     */
-    template <typename T>
-    deletion(T &&) -> deletion<T>;
-    //!\}
+/*!\name Template argument type deduction guides
+ * \relates seqan3::search_cfg::deletion
+ * \{
+ */
+template <typename value_t>
+deletion(value_t &&) -> deletion<value_t>;
+//!\}
+
 } // namespace seqan3::search_cfg
 
 namespace seqan3::detail
@@ -164,10 +165,10 @@ struct search_config_max_error_adaptor : public configuration_fn_base<search_con
                       SEQAN3_INVALID_CONFIG(search_cfg::id::max_error));
 
         search_config_max_error tmp{std::tuple<uint8_t, uint8_t, uint8_t, uint8_t>{
-                                        (int) total_error,
-                                        (int) substitution_error,
-                                        (int) insertion_error,
-                                        (int) deletion_error}
+                                        static_cast<int>(total_error),
+                                        static_cast<int>(substitution_error),
+                                        static_cast<int>(insertion_error),
+                                        static_cast<int>(deletion_error)}
                                     };
         return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
