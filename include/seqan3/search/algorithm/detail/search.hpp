@@ -96,22 +96,14 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
 {
     // retrieve error numbers / rates
     detail::search_params max_error{0, 0, 0, 0};
+    auto & [total, subs, ins, del] = max_error;
     if constexpr (contains<id::max_error>(cfg))
-    {
-        auto const t = get<id::max_error>(cfg);
-        max_error.total = std::get<0>(t);
-        max_error.substitution = std::get<1>(t);
-        max_error.insertion = std::get<2>(t);
-        max_error.deletion = std::get<3>(t);
-    }
+        std::tie(total, subs, ins, del) = get<id::max_error>(cfg);
     else if constexpr (contains<id::max_error_rate>(cfg))
-    {
-        auto const t = get<id::max_error_rate>(cfg);
-        max_error.total = std::get<0>(t) * query.size();
-        max_error.substitution = std::get<1>(t) * query.size();
-        max_error.insertion = std::get<2>(t) * query.size();
-        max_error.deletion = std::get<3>(t) * query.size();
-    }
+        std::tie(total, subs, ins, del) = std::apply([& query](auto && ... args)
+            {
+                return std::tuple{(args * query.size())...};
+            }, get<id::max_error_rate>(cfg));
 
     // TODO: this would be a lot nicer if all errors would either be ints or doubles and nothing mixed
     // total not set but other error types
@@ -250,9 +242,9 @@ inline auto _search(index_t const & index, queries_t const & queries, config_t c
         // std::vector<std::vector<std::tuple<hit_t, detail::search_params>>> hits;
         std::vector<std::vector<hit_t>> hits;
         hits.reserve(queries.size());
-        for (auto query_iter = queries.begin(); query_iter != queries.end(); query_iter++)
+        for (auto const query : queries)
         {
-            hits.push_back(_search_single(index, *query_iter, cfg));
+            hits.push_back(_search_single(index, query, cfg));
         }
         return hits;
     }

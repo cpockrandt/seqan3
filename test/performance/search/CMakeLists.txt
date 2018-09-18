@@ -1,2 +1,0 @@
-seqan3_benchmark(alphabet_mapping_benchmark.cpp)
-seqan3_benchmark(compile_time_error_cfg.cpp)

@@ -44,6 +44,8 @@
 #include <seqan3/core/algorithm/configuration.hpp>
 #include <seqan3/core/detail/reflection.hpp>
 
+#include <seqan3/alignment/configuration/utility.hpp> // TODO: move common code into core module and remove this include
+
 namespace seqan3::search_cfg
 {
 
@@ -82,16 +84,6 @@ enum struct id : uint8_t
 
 namespace seqan3::detail
 {
-// ----------------------------------------------------------------------------
-// SEQAN3_INVALID_CONFIG
-// ----------------------------------------------------------------------------
-
-//!\cond
-// A common error message for testing valid configuration combinations.
-#define SEQAN3_INVALID_CONFIG(e) "Configuration error: The configuration <" #e "> is not combinable with "  \
-                                 "one of the previous config elements. Please see the documentation to get "\
-                                 "more information about which configurations can be combined."
-//!\endcond
 
 // ----------------------------------------------------------------------------
 // on_search_config

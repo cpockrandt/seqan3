@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the search strategy configuration "all".
+ * \brief Provides the mode configuration to define the search modes "all", "all_best", "best" and "strata".
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -62,11 +62,16 @@ struct search_mode_best {};
 namespace seqan3::search_cfg
 {
 
+//!\brief Configuration element to receive all hits within the error bounds.
 inline detail::search_mode_all constexpr all;
+//!\brief Configuration element to receive all hits within the lowest number of errors.
 inline detail::search_mode_all_best constexpr all_best;
+//!\brief Configuration element to receive one best hit (with the lowest number of errors).
 inline detail::search_mode_best constexpr best;
 
-/*!\brief A strong type of underlying type `uint8_t` or `double` that represents the number or rate of total errors.
+/*!\brief Configuration element to receive all hits with the best number of errors plus the strata value.
+ *        A strong type of underlying type `uint8_t` that represents the number or errors for strata.
+ *        All hits are found with the fewest numbererrors plus 'value'.
  * \tparam value_t The underlying type
  * \ingroup search_configuration
  */
@@ -99,6 +104,7 @@ struct search_config_mode_adaptor : public configuration_fn_base<search_config_m
 
     /*!\brief Adds to the configuration the seqan3::search_cfg::mode configuration element.
      * \param[in] cfg The configuration to be extended.
+     * \param[in] mode The mode determining the search strategy (all, best, all_best, etc.).
      * \returns A new configuration containing the seqan3::search_cfg::mode configuration element.
      */
     template <typename configuration_t, typename mode_t>

@@ -33,7 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides the configuration for maximum number of errors across all error types.
+ * \brief Provides the configuration for maximum number of errors for all error types.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 

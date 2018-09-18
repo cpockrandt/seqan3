@@ -39,8 +39,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <seqan3/core/algorithm/all.hpp>
 #include <seqan3/core/metafunction/basic.hpp>
 #include <seqan3/core/metafunction/template_inspection.hpp>

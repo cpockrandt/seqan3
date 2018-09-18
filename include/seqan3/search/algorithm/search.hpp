@@ -51,11 +51,13 @@ namespace seqan3
 template <class a>
 struct nothing;
 
+//!\brief \todo Document!
 template <typename index_t, typename queries_t, typename config_t>
 //!\cond
     requires
         (std::ranges::RandomAccessRange<queries_t> ||
-            (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)) && detail::is_algorithm_configuration_v<remove_cvref_t<config_t>>
+            (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)) &&
+        detail::is_algorithm_configuration_v<remove_cvref_t<config_t>>
 //!\endcond
 inline auto search(index_t const & index, queries_t const & queries, config_t const & cfg)
 {
@@ -105,11 +107,14 @@ inline auto search(index_t const & index, queries_t const & queries, config_t co
     }
 }
 
+// TODO: const &, &&, etc.: use forwarding references and add a view::persist
 // DOC: insertion/deletion are with resp. to the query. i.e. an insertion is the insertion of a base into the query
 // that does not occur in the text at the position
+//!\brief \todo Document!
 template <typename index_t, typename queries_t>
 //!\cond
-    requires std::ranges::RandomAccessRange<queries_t> || (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)
+    requires std::ranges::RandomAccessRange<queries_t> ||
+             (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)
 //!\endcond
 inline auto search(index_t const & index, queries_t const & queries)
 {
