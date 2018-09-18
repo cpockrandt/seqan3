@@ -46,14 +46,8 @@
  * \todo Write detailed landing page.
  */
 
-#include <seqan3/search/algorithm/configuration/max_deletion_error_rate.hpp>
-#include <seqan3/search/algorithm/configuration/max_deletion_error.hpp>
-#include <seqan3/search/algorithm/configuration/max_insertion_error_rate.hpp>
-#include <seqan3/search/algorithm/configuration/max_insertion_error.hpp>
-#include <seqan3/search/algorithm/configuration/max_substitution_error_rate.hpp>
-#include <seqan3/search/algorithm/configuration/max_substitution_error.hpp>
-#include <seqan3/search/algorithm/configuration/max_total_error_rate.hpp>
-#include <seqan3/search/algorithm/configuration/max_total_error.hpp>
+#include <seqan3/search/algorithm/configuration/max_error.hpp>
+#include <seqan3/search/algorithm/configuration/max_error_rate.hpp>
 #include <seqan3/search/algorithm/configuration/on_hit.hpp>
 #include <seqan3/search/algorithm/configuration/return_index_iterator.hpp>
 #include <seqan3/search/algorithm/configuration/return_text_position.hpp>

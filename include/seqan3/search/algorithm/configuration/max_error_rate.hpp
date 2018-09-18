@@ -53,60 +53,80 @@ namespace seqan3::detail
           of specific error types.
  * \ingroup search_configuration
  */
-struct search_config_max_total_error_rate
+struct search_config_max_error_rate
 {
     //!\brief The actual value.
-    double value;
+    std::tuple<double, double, double, double> value;
 };
 
-/*!\brief The max_total_error_rate adaptor enabling pipe notation.
+/*!\brief The max_error_rate adaptor enabling pipe notation.
  * \ingroup search_configuration
  */
-struct search_config_max_total_error_rate_adaptor :
-    public configuration_fn_base<search_config_max_total_error_rate_adaptor>
+struct search_config_max_error_rate_adaptor :
+    public configuration_fn_base<search_config_max_error_rate_adaptor>
 {
 
-    /*!\brief Adds to the configuration a max_total_error_rate configuration element.
+    /*!\brief Adds to the configuration a max_error configuration element.
+     * \relates seqan3::search_config_max_error
      * \param[in] cfg  The configuration to be extended.
-     * \param[in] rate The maximum error rate used for the algorithm.
-     * \returns A new configuration containing the max_total_error_rate configuration element.
+     * \param[in] total_error The number of maximum errors over all error types.
+     * \param[in] substitution_error The number of maximum substitution errors.
+     * \param[in] insertion_error The number of maximum insertion errors.
+     * \param[in] deletion_error The number of maximum deletion errors.
+     * \returns A new configuration containing the max_error configuration element.
      */
     template <typename configuration_t>
     //!\cond
         requires is_algorithm_configuration_v<remove_cvref_t<configuration_t>>
     //!\endcond
-    constexpr auto invoke(configuration_t && cfg, double const rate) const
+    // TODO: replace int by templates and check whether it can be casted to uint8_t
+    // TODO: template argument packing. allow any order and subset of strong types
+    constexpr auto invoke(configuration_t && cfg, search_cfg::total<double> const total_error,
+                                                  search_cfg::substitution<double> const substitution_error,
+                                                  search_cfg::insertion<double> const insertion_error,
+                                                  search_cfg::deletion<double> const deletion_error) const
     {
-        static_assert(is_valid_search_configuration_v<search_cfg::id::max_total_error_rate,
-                                                      remove_cvref_t<configuration_t>>,
-                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_total_error_rate));
+        static_assert(is_valid_search_configuration_v<search_cfg::id::max_error, remove_cvref_t<configuration_t>>,
+                      SEQAN3_INVALID_CONFIG(search_cfg::id::max_error));
 
-        if (0 > rate || rate > 1)
-            throw std::invalid_argument("Error rates must be between 0 and 1 but max_substitution_error_rate has been "
-                                        "set to " + std::to_string(rate) + ".");
+        double total {total_error},
+               substitution {substitution_error},
+               insertion {insertion_error},
+               deletion {deletion_error};
 
-        search_config_max_total_error_rate tmp{rate};
+        if (0 > total        || total > 1 ||
+            0 > substitution || substitution > 1 ||
+            0 > insertion    || insertion > 1 ||
+            0 > deletion     || deletion > 1)
+            throw std::invalid_argument("Error rates must be between 0 and 1.");
+
+        search_config_max_error_rate tmp{std::tuple<double, double, double, double>{
+                                        total,
+                                        substitution,
+                                        insertion,
+                                        deletion}
+                                    };
         return std::forward<configuration_t>(cfg).push_front(std::move(tmp));
     }
 };
 
-//!\brief Helper template meta-function associated with detail::search_config_max_total_error_rate.
+//!\brief Helper template meta-function associated with detail::search_config_max_error_rate.
 //!\ingroup search_configuration
 template <>
-struct on_search_config<search_cfg::id::max_total_error_rate>
+struct on_search_config<search_cfg::id::max_error_rate>
 {
     //!\brief Type alias used by meta::find_if
     template <config_element_concept t>
-    using invoke = typename std::is_same<t, search_config_max_total_error_rate>::type;
+    using invoke = typename std::is_same<t, search_config_max_error_rate>::type;
 };
 
-//!\brief Mapping from the detail::search_config_max_total_error_rate type to it's corresponding seqan3::search_cfg::id.
+//!\brief Mapping from the detail::search_config_max_error_rate type to it's corresponding seqan3::search_cfg::id.
 //!\ingroup search_configuration
 template <>
-struct search_config_type_to_id<search_config_max_total_error_rate>
+struct search_config_type_to_id<search_config_max_error_rate>
 {
     //!\brief The associated seqan3::search_cfg::id.
-    static constexpr search_cfg::id value = search_cfg::id::max_total_error_rate;
+    static constexpr search_cfg::id value = search_cfg::id::max_error_rate;
 };
 } // namespace seqan3::detail
 
@@ -117,6 +137,6 @@ namespace seqan3::search_cfg
           of specific error types.
  * \ingroup search_configuration
  */
-inline constexpr detail::search_config_max_total_error_rate_adaptor max_total_error_rate;
+inline constexpr detail::search_config_max_error_rate_adaptor max_error_rate;
 
 } // namespace seqan3::search_cfg

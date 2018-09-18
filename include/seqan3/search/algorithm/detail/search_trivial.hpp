@@ -198,7 +198,7 @@ namespace seqan3::detail
         }
     }
 
-    template <bool substitution, bool insertion, bool deletion, bool abort_on_hit, typename TIndex, typename TQuery, typename TDelegate>
+    template <bool abort_on_hit, typename TIndex, typename TQuery, typename TDelegate>
     inline void search_trivial(TIndex const & index, TQuery const & query, search_params error_left, TDelegate && delegate)
     {
         // <abort_on_hit>

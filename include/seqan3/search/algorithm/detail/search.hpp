@@ -39,6 +39,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #include <seqan3/core/metafunction/pre.hpp>
 #include <seqan3/search/algorithm/detail/search_trivial.hpp>
 
@@ -71,62 +73,75 @@ namespace seqan3::detail
 //     return hits_filtered;
 // }
 
-template <seqan3::search_cfg::id id_error, seqan3::search_cfg::id id_error_rate>
-inline uint8_t _compute_errors(auto const & cfg, auto const query_size)
-{
-    // NOTE: Casting doubles rounds towards zero (i.e. floor for positive numbers). Thus given a rate of 10% and a read
-    // length of 101 the maxiumum number of errors is correctly casted from 10.1 errors to 10
+// template <seqan3::search_cfg::id id_error, seqan3::search_cfg::id id_error_rate>
+// inline uint8_t _compute_errors(auto const & cfg, auto const query_size)
+// {
+//     // NOTE: Casting doubles rounds towards zero (i.e. floor for positive numbers). Thus given a rate of 10% and a read
+//     // length of 101 the maxiumum number of errors is correctly casted from 10.1 errors to 10
+//
+//     if constexpr (contains<id_error>(cfg))
+//     {
+//         return get<id_error>(cfg);
+//     }
+//     else if constexpr (contains<id_error_rate>(cfg))
+//     {
+//         return static_cast<uint8_t>(get<id_error_rate>(cfg) * query_size);
+//     }
+//     else
+//     {
+//         return 0;
+//     }
+// }
 
-    if constexpr (contains<id_error>(cfg))
-    {
-        return get<id_error>(cfg);
-    }
-    else if constexpr (contains<id_error_rate>(cfg))
-    {
-        return static_cast<uint8_t>(get<id_error_rate>(cfg) * query_size);
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-template <bool substitution, bool insertion, bool deletion, typename index_t, typename query_t, typename config_t>
+template <typename index_t, typename query_t, typename config_t>
 inline auto _search_single(index_t const & index, query_t const & query, config_t const & cfg)
 {
     // retrieve error numbers / rates
     detail::search_params max_error{0, 0, 0, 0};
-    max_error.total        = _compute_errors<id::max_total_error, id::max_total_error_rate>(cfg, query.size());
-    if constexpr (deletion)
-        max_error.deletion     = _compute_errors<id::max_deletion_error, id::max_deletion_error_rate>(cfg, query.size());
-    if constexpr (insertion)
-        max_error.insertion    = _compute_errors<id::max_insertion_error, id::max_insertion_error_rate>(cfg, query.size());
-    if constexpr (substitution)
-        max_error.substitution = _compute_errors<id::max_substitution_error, id::max_substitution_error_rate>(cfg,
-                                                                                                          query.size());
+    if constexpr (contains<id::max_error>(cfg))
+    {
+        auto const t = get<id::max_error>(cfg);
+        max_error.total = std::get<0>(t);
+        max_error.substitution = std::get<1>(t);
+        max_error.insertion = std::get<2>(t);
+        max_error.deletion = std::get<3>(t);
+    }
+    else if constexpr (contains<id::max_error_rate>(cfg))
+    {
+        auto const t = get<id::max_error_rate>(cfg);
+        max_error.total = std::get<0>(t) * query.size();
+        max_error.substitution = std::get<1>(t) * query.size();
+        max_error.insertion = std::get<2>(t) * query.size();
+        max_error.deletion = std::get<3>(t) * query.size();
+    }
+
+    // std::cout << (unsigned) max_error.total << ' '
+    //           << (unsigned) max_error.substitution << ' '
+    //           << (unsigned) max_error.insertion << ' '
+    //           << (unsigned) max_error.deletion << '\n';
 
     // TODO: this would be a lot nicer if all errors would either be ints or doubles and nothing mixed
     // total not set but other error types
-    if constexpr (!contains<id::max_total_error_rate>(cfg) && !contains<id::max_total_error>(cfg) &&
-                  (substitution || insertion || deletion))
-    {
-        max_error.total = max_error.deletion + max_error.substitution + max_error.insertion;
-    }
-    else if constexpr (contains<id::max_total_error_rate>(cfg) || contains<id::max_total_error>(cfg))
-    {
-        if (max_error.total == 0 && (max_error.deletion > 0 || max_error.substitution > 0 || max_error.insertion > 0))
-            throw std::invalid_argument("The total number of errors is set to zero while there is a positive number "
-                                        "of errors for a specific error type.");
-        // else if (max_error.total > 0) // not a good idea
-        // {
-        //     if constexpr (!deletion)
-        //         max_error.deletion = max_error.total;
-        //     if constexpr (!insertion)
-        //         max_error.insertion = max_error.total;
-        //     if constexpr (!substitution)
-        //         max_error.substitution = max_error.total;
-        // }
-    }
+    // if constexpr (!contains<id::max_total_error_rate>(cfg) && !contains<id::max_total_error>(cfg) &&
+    //               (substitution || insertion || deletion))
+    // {
+    //     max_error.total = max_error.deletion + max_error.substitution + max_error.insertion;
+    // }
+    // else if constexpr (contains<id::max_total_error_rate>(cfg) || contains<id::max_total_error>(cfg))
+    // {
+    //     if (max_error.total == 0 && (max_error.deletion > 0 || max_error.substitution > 0 || max_error.insertion > 0))
+    //         throw std::invalid_argument("The total number of errors is set to zero while there is a positive number "
+    //                                     "of errors for a specific error type.");
+    //     // else if (max_error.total > 0) // not a good idea
+    //     // {
+    //     //     if constexpr (!deletion)
+    //     //         max_error.deletion = max_error.total;
+    //     //     if constexpr (!insertion)
+    //     //         max_error.insertion = max_error.total;
+    //     //     if constexpr (!substitution)
+    //     //         max_error.substitution = max_error.total;
+    //     // }
+    // }
 
     // TODO: throw exception when any error number or rate is higher than the total error number/rate
 
@@ -147,7 +162,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<substitution, insertion, deletion, true>(index, query, max_error2, internal_delegate);
+            detail::search_trivial<true>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
     }
@@ -157,7 +172,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<substitution, insertion, deletion, false>(index, query, max_error2, internal_delegate);
+            detail::search_trivial<false>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
     }
@@ -167,7 +182,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<substitution, insertion, deletion, true>(index, query, max_error2, internal_delegate);
+            detail::search_trivial<true>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
         if (!internal_hits.empty())
@@ -175,12 +190,12 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
             internal_hits.clear(); // don't clear when using Optimum Search Schemes with lower error bounds
             uint8_t const s = seqan3::get<id::strategy_strata>(cfg);
             max_error2.total += s - 1;
-            detail::search_trivial<substitution, insertion, deletion, false>(index, query, max_error2, internal_delegate);
+            detail::search_trivial<false>(index, query, max_error2, internal_delegate);
         }
     }
     else // "strategy_all" or not specified
     {
-        detail::search_trivial<substitution, insertion, deletion, false>(index, query, max_error, internal_delegate);
+        detail::search_trivial<false>(index, query, max_error, internal_delegate);
     }
 
     // TODO: filter hits and only do it when necessary (depending on error types)
@@ -216,12 +231,12 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
     }
 }
 
-template <bool substitution, bool insertion, bool deletion, typename index_t, typename queries_t, typename config_t>
+template <typename index_t, typename queries_t, typename config_t>
     requires
         (std::ranges::RandomAccessRange<queries_t> ||
             (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)) &&
         detail::is_algorithm_configuration_v<remove_cvref_t<config_t>>
-inline auto search(index_t const & index, queries_t const & queries, config_t const & cfg)
+inline auto _search(index_t const & index, queries_t const & queries, config_t const & cfg)
 {
     // return type: for each query: a vector of text_position (or iterators) and number of errors spent
     // delegate params: text_position (or iterator), number of errors spent and query id. (TODO: or return vector)
@@ -238,14 +253,14 @@ inline auto search(index_t const & index, queries_t const & queries, config_t co
         hits.reserve(queries.size());
         for (auto query_iter = queries.begin(); query_iter != queries.end(); query_iter++)
         {
-            hits.push_back(_search_single<substitution, insertion, deletion>(index, *query_iter, cfg));
+            hits.push_back(_search_single(index, *query_iter, cfg));
         }
         return hits;
     }
     else // std::ranges::RandomAccessRange<queries_t>
     {
         // TODO: if constexpr (contains<id::on_hit>(cfg))
-        return _search_single<substitution, insertion, deletion>(index, queries, cfg);
+        return _search_single(index, queries, cfg);
     }
 
     // as we allow different error rates for different error types, we cannot really disallow this error configuration

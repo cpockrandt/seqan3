@@ -57,31 +57,32 @@ template <typename index_t, typename queries_t, typename config_t>
 inline auto search(index_t const & index, queries_t const & queries, config_t const & cfg)
 {
     // set default error types when total is set but no specific error type
-    constexpr bool
-        substitution = contains<id::max_substitution_error_rate>(cfg) || contains<id::max_substitution_error>(cfg),
-        insertion    = contains<id::max_insertion_error_rate>(cfg) || contains<id::max_insertion_error>(cfg),
-        deletion     = contains<id::max_deletion_error_rate>(cfg) || contains<id::max_deletion_error>(cfg);
+    // bool
+    //     substitution = contains<id::max_substitution_error_rate>(cfg) || contains<id::max_substitution_error>(cfg),
+    //     insertion    = contains<id::max_insertion_error_rate>(cfg) || contains<id::max_insertion_error>(cfg),
+    //     deletion     = contains<id::max_deletion_error_rate>(cfg) || contains<id::max_deletion_error>(cfg);
 
-    if constexpr (!substitution && !insertion && !deletion)
-    {
-        if constexpr (contains<id::max_total_error>(cfg))
-        {
-            uint8_t const total_error = get<id::max_total_error>(cfg);
-            detail::configuration const cfg2 = cfg | max_substitution_error(total_error)
-                                                   | max_insertion_error(total_error)
-                                                   | max_deletion_error(total_error);
-            return detail::search<true, true, true>(index, queries, cfg2);
-        }
-        else if constexpr (contains<id::max_total_error_rate>(cfg))
-        {
-            double const total_error_rate = get<id::max_total_error_rate>(cfg);
-            detail::configuration const cfg2 = cfg | max_substitution_error_rate(total_error_rate)
-                                                   | max_insertion_error_rate(total_error_rate)
-                                                   | max_deletion_error_rate(total_error_rate);
-            return detail::search<true, true, true>(index, queries, cfg2);
-        }
-    }
-    return detail::search<substitution, insertion, deletion>(index, queries, cfg);
+    // TODO!
+    // if constexpr (!substitution && !insertion && !deletion)
+    // {
+    //     if constexpr (contains<id::max_total_error>(cfg))
+    //     {
+    //         uint8_t const total_error = get<id::max_total_error>(cfg);
+    //         detail::configuration const cfg2 = cfg | max_substitution_error(total_error)
+    //                                                | max_insertion_error(total_error)
+    //                                                | max_deletion_error(total_error);
+    //         return detail::search<true, true, true>(index, queries, cfg2);
+    //     }
+    //     else if constexpr (contains<id::max_total_error_rate>(cfg))
+    //     {
+    //         double const total_error_rate = get<id::max_total_error_rate>(cfg);
+    //         detail::configuration const cfg2 = cfg | max_substitution_error_rate(total_error_rate)
+    //                                                | max_insertion_error_rate(total_error_rate)
+    //                                                | max_deletion_error_rate(total_error_rate);
+    //         return detail::search<true, true, true>(index, queries, cfg2);
+    //     }
+    // }
+    return detail::_search(index, queries, cfg);
 }
 
 // DOC: insertion/deletion are with resp. to the query. i.e. an insertion is the insertion of a base into the query
