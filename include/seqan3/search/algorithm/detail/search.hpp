@@ -41,6 +41,7 @@
 
 #include <seqan3/core/metafunction/pre.hpp>
 #include <seqan3/search/algorithm/detail/search_trivial.hpp>
+#include <seqan3/search/algorithm/detail/search_scheme_algorithm.hpp>
 #include <seqan3/search/fm_index/concept.hpp>
 
 namespace seqan3::detail
@@ -77,7 +78,7 @@ inline auto _search_single(index_t const & index, query_t const & query, config_
     std::vector<typename index_t::iterator_type> internal_hits;
     auto internal_delegate = [&internal_hits, &max_error](auto const & it)
     {
-        internal_hits.push_back(it);
+        internal_hits.push_back(it); // TODO: report max_error-error_left
     };
 
     // choose mode
