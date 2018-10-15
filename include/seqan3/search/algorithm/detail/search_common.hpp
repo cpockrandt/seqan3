@@ -34,98 +34,44 @@
 
 /*!\file
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief Provides the data structures and precomputed instances for optimum search schemes.
+ * \brief TODO
  */
 
 #pragma once
 
-/*!\addtogroup search
- * \{
- */
+#include <type_traits>
+
+//!\cond
 
 namespace seqan3::detail
 {
 
-template <uint8_t nbr_blocks>
-struct search
+struct search_params
 {
-    std::array<uint8_t, nbr_blocks> pi;
-    std::array<uint8_t, nbr_blocks> l;
-    std::array<uint8_t, nbr_blocks> u;
+    uint8_t total, substitution, insertion, deletion;
 
-    // TODO?: search() : pi(), l(), u() {};
-
-    uint8_t blocks() const noexcept
-    {
-        return pi.size();
-    }
+    // search_params & operator-=(search_params const & rhs)
+    // {
+    //     total -= rhs.total;
+    //     substitution -= rhs.substitution;
+    //     insertion -= rhs.insertion;
+    //     deletion -= rhs.deletion;
+    //
+    //     return *this;
+    // }
+    //
+    // search_params operator-(search_params const & rhs)
+    // {
+    //     search_params result{};
+    //     result.total = total - rhs.total;
+    //     result.substitution = total - rhs.substitution;
+    //     result.insertion = total - rhs.insertion;
+    //     result.deletion = total - rhs.deletion;
+    //
+    //     return result;
+    // }
 };
 
-template <uint8_t nbr_searches, uint8_t nbr_blocks>
-using search_scheme = std::array<search<nbr_blocks>, nbr_searches>;
+} // namespace seqan3::detail
 
-struct search_dyn
-{
-    std::vector<uint8_t> pi;
-    std::vector<uint8_t> l;
-    std::vector<uint8_t> u;
-
-    uint8_t blocks() const noexcept
-    {
-        return pi.size();
-    }
-};
-
-using search_scheme_dyn = std::vector<search_dyn>;
-
-template <uint8_t min_errors, uint8_t max_errors>
-struct optimum_search_scheme;
-
-template <>
-struct optimum_search_scheme<0, 0>
-{
-    static constexpr search_scheme<1, 3> value
-    {{
-        {{2, 1, 3}, {0, 0, 0}, {0, 0, 0}}
-    }};
-};
-
-template <>
-struct optimum_search_scheme<0, 1>
-{
-    static constexpr search_scheme<2, 2> value
-    {{
-        {{1, 2}, {0, 0}, {0, 1}},
-        {{2, 1}, {0, 1}, {0, 1}}
-    }};
-};
-
-template <>
-struct optimum_search_scheme<0, 2>
-{
-    static constexpr search_scheme<3, 4> value
-    {{
-        {{1, 2, 3, 4}, {0, 0, 1, 1}, {0, 0, 2, 2}},
-        {{3, 2, 1, 4}, {0, 0, 0, 0}, {0, 1, 1, 2}},
-        {{4, 3, 2, 1}, {0, 0, 0, 2}, {0, 1, 2, 2}}
-    }};
-};
-
-template <>
-struct optimum_search_scheme<0, 3>
-{
-    static constexpr search_scheme<4, 5> value
-    {{
-        {{1, 2, 3, 4, 5}, {0, 0, 0, 0, 3}, {0, 2, 2, 3, 3}},
-        {{2, 3, 4, 5, 1}, {0, 0, 0, 2, 2}, {0, 1, 2, 2, 3}},
-        {{3, 4, 5, 2, 1}, {0, 0, 1, 1, 1}, {0, 1, 1, 2, 3}},
-        {{5, 4, 3, 2, 1}, {0, 0, 0, 0, 0}, {0, 0, 3, 3, 3}}
-    }};
-};
-
-// TODO: OSS with min error != 0
-// TODO: compute OSS for 4 errors
-
-}
-
-//!\}
+//!\endcond

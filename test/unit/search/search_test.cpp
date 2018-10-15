@@ -318,20 +318,6 @@ TYPED_TEST(search_test, search_strategy_all_best)
     }
 }
 
-TYPED_TEST(search_test, bla)
-{
-    auto query = "ACGT"_dna4;
-    detail::search_params error_left{0, 0, 0, 0};
-
-    std::vector<typename TypeParam::iterator_type> internal_hits;
-    auto internal_delegate = [&internal_hits](auto const & it)
-    {
-        internal_hits.push_back(it);
-    };
-
-    detail::search_search_scheme<false>(this->index, query, error_left, detail::optimum_search_scheme<0, 2>::value, internal_delegate);
-}
-
 TYPED_TEST(search_test, search_strategy_strata)
 {
     using hits_result_t = std::vector<typename TypeParam::size_type>;

@@ -43,6 +43,8 @@
 #include <algorithm>
 #include <vector>
 
+#include <seqan3/alphabet/all.hpp>
+
 namespace seqan3
 {
 
@@ -59,6 +61,15 @@ std::vector<std::vector<T>> sort(std::vector<std::vector<T>> v)
 {
     std::for_each(v.begin(), v.end(), [](auto & hits) { sort(hits); } );
     return v;
+}
+
+void random_text(std::vector<dna4> & text, uint64_t const length)
+{
+    uint8_t alphabet_size{4};
+
+    text.resize(length);
+    for (uint64_t i = 0; i < length; ++i)
+        assign_rank(text[i], std::rand() % alphabet_size);
 }
 
 } // namespace std

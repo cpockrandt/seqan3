@@ -46,39 +46,9 @@
 #include <range/v3/view/drop_exactly.hpp>
 
 #include <seqan3/range/concept.hpp>
+#include <seqan3/search/algorithm/detail/search_common.hpp>
 
 //!\cond
-
-namespace seqan3::detail
-{
-
-struct search_params
-{
-    uint8_t total, substitution, insertion, deletion;
-
-    // search_params & operator-=(search_params const & rhs)
-    // {
-    //     total -= rhs.total;
-    //     substitution -= rhs.substitution;
-    //     insertion -= rhs.insertion;
-    //     deletion -= rhs.deletion;
-    //
-    //     return *this;
-    // }
-    //
-    // search_params operator-(search_params const & rhs)
-    // {
-    //     search_params result{};
-    //     result.total = total - rhs.total;
-    //     result.substitution = total - rhs.substitution;
-    //     result.insertion = total - rhs.insertion;
-    //     result.deletion = total - rhs.deletion;
-    //
-    //     return result;
-    // }
-};
-
-} // namespace seqan3::detail
 
 namespace seqan3::detail
 {
