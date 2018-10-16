@@ -107,12 +107,12 @@ inline void search_scheme_single_search(auto it, auto & query, uint64_t const lb
                                         auto const & search, auto const & blocklength,
                                         search_params const error_left, auto && delegate);
 
-template <bool abort_on_hit>
-inline void search_scheme_single_search_children(auto it, auto & query, uint64_t const lb, uint64_t const rb,
-                                                 uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
-                                                 uint8_t const min_errors_left_in_block,
-                                                 auto const & search, auto const & blocklength,
-                                                 search_params const error_left, auto && delegate);
+// template <bool abort_on_hit>
+// inline void search_scheme_single_search_children(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+//                                                  uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
+//                                                  uint8_t const min_errors_left_in_block,
+//                                                  auto const & search, auto const & blocklength,
+//                                                  search_params const error_left, auto && delegate);
 
 template <bool abort_on_hit>
 inline void search_search_scheme(auto index, auto & query, search_params errors_left, auto const & search_scheme, auto && delegate);
@@ -134,11 +134,14 @@ inline void search_scheme_single_search_deletion(auto it, auto & query, uint64_t
         search_scheme_single_search<abort_on_hit>(it, query, lb, rb, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate);
     }
 
-    if (max_errors_left_in_block > 0 && ((go_right && it.extend_right()) || (!go_right && it.extend_left())))
+    if (max_errors_left_in_block > 0 && error_left.total > 0 && error_left.deletion > 0 && ((go_right && it.extend_right()) || (!go_right && it.extend_left())))
     {
+        search_params error_left2{error_left};
+        error_left2.total--;
+        error_left2.deletion--;
         do
         {
-            search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left, delegate);
+            search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
         } while ((go_right && it.cycle_back()) || (!go_right && it.cycle_front()));
     }
 }
@@ -161,42 +164,50 @@ inline void search_scheme_single_search_children(auto it, auto & query, uint64_t
         {
             bool const delta = it.last_char() != query[(go_right ? rb : lb) - 1];
 
+            search_params error_left2{error_left};
+            error_left2.total -= delta;
+            error_left2.substitution -= delta;
+
             // NOTE: move that outside the if / do-while struct
             // NOTE: check that as well before doing non-edit-distance steps inside the loop
-            if (/*!std::is_same<TDistanceTag, EditDistance>::value && */min_errors_left_in_block > 0 &&
-                    chars_left + delta < min_errors_left_in_block + 1u) // charsLeft - 1 < minErrorsLeftInBlock - delta
+            if (!(/*error_left.insertion > 0 || */error_left.deletion > 0) && // TODO: remove insertion case
+                min_errors_left_in_block > 0 && chars_left + delta < min_errors_left_in_block + 1u) // charsLeft - 1 < minErrorsLeftInBlock - delta
             {
                 continue;
             }
 
-            if (rb - lb == blocklength[block_id])
+            if (!delta || error_left.substitution > 0)
             {
-                // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
-                // if (std::is_same<TDistanceTag, EditDistance>::value)
-                // {
-                //     _optimalSearchSchemeDeletion(delegate, iter, needle, needleLeftPos2, needleRightPos2,
-                //                                  errors + delta, s, blockIndex, TDir());
-                // }
-                // else
+                if (rb - lb == blocklength[block_id])
                 {
-                    // NOTE: call std::min<uint8_t>
-                    uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
-                    bool const go_right2 = search.pi[block_id2] > search.pi[block_id2 - 1];
+                    // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
+                    if (/*error_left.insertion > 0 || */error_left.deletion > 0) // TODO: remove insertion case
+                    {
+                        search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate);
+                    }
+                    else
+                    {
+                        // NOTE: call std::min<uint8_t>
+                        uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
+                        bool const go_right2 = search.pi[block_id2] > search.pi[block_id2 - 1];
 
-                    search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id2, go_right2, search, blocklength, error_left, delegate);
+                        search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id2, go_right2, search, blocklength, error_left2, delegate);
+                    }
+                }
+                else
+                {
+                    search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate);
                 }
             }
-            else
-            {
-                search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left, delegate);
-            }
 
-            // // Deletion
-            // if (std::is_same<TDistanceTag, EditDistance>::value)
-            // {
-            //     _optimalSearchScheme(delegate, iter, needle, needleLeftPos, needleRightPos, errors + 1, s, blockIndex,
-            //                          TDir(), TDistanceTag());
-            // }
+            // Deletion
+            if (error_left.deletion > 0) // TODO: is this correct?
+            {
+                search_params error_left3{error_left};
+                error_left3.total--;
+                error_left3.deletion--;
+                search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left3, delegate);
+            }
 
         } while ((go_right && it.cycle_back()) || (!go_right && it.cycle_front()));
     }
@@ -209,8 +220,8 @@ inline void search_scheme_single_search_exact(auto it, auto & query, uint64_t co
                                               auto const & search, auto const & blocklength,
                                               search_params const error_left, auto && delegate)
 {
-    uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.u.size()) - 1);
-    bool const go_right2 = (block_id < search.pi.size() - 1) && search.pi[block_id + 1] > search.pi[block_id];
+    uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
+    bool const go_right2 = (block_id < search.blocks() - 1) && search.pi[block_id + 1] > search.pi[block_id];
     // NOTE: from sven:
     // bool const goToRight2 = (blockIndex < s.pi.size() - 1) ? s.pi[blockIndex + 1] > s.pi[blockIndex] : s.pi[blockIndex] > s.pi[blockIndex - 1];
 
@@ -260,27 +271,29 @@ inline void search_scheme_single_search(auto it, auto & query, uint64_t const lb
         search_scheme_single_search_exact<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, search, blocklength, error_left, delegate);
     }
     // Approximate search in current block.
-    else // (blocklength[block_id] - (rb - lb - (lb != rb)) >= min_errors_left_in_block)
+    else if (error_left.total > 0) // (blocklength[block_id] - (rb - lb - (lb != rb)) >= min_errors_left_in_block)
     {
         // Insertion
-        // if (std::is_same<TDistanceTag, EditDistance>::value)
-        // {
-        //     bool const goToRight = std::is_same<TDir, Rev>::value;
-        //     int64_t const needleLeftPos2 = needleLeftPos - !goToRight;
-        //     uint64_t const needleRightPos2 = needleRightPos + goToRight;
-        //
-        //     if (needleRightPos - needleLeftPos == s.blocklength[blockIndex])
-        //     {
-        //         // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
-        //         _optimalSearchSchemeDeletion(delegate, iter, needle, needleLeftPos2, needleRightPos2, errors + 1, s,
-        //                                      blockIndex, TDir());
-        //     }
-        //     else
-        //     {
-        //         _optimalSearchScheme(delegate, iter, needle, needleLeftPos2, needleRightPos2, errors + 1, s, blockIndex,
-        //                              TDir(), TDistanceTag());
-        //     }
-        // }
+        if (error_left.insertion > 0)
+        {
+            uint64_t const lb2 = lb - !go_right;
+            uint64_t const rb2 = rb + go_right;
+
+            search_params error_left2{error_left};
+            error_left2.total--;
+            error_left2.insertion--;
+            if (rb - lb == blocklength[block_id])
+            {
+                // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
+                // TODO: can the first "if statement" lead to a duplicate path in backtracking? should we enforce a
+                // going down edges before calling this function?
+                search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
+            }
+            else
+            {
+                search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
+            }
+        }
         search_scheme_single_search_children<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, min_errors_left_in_block, search, blocklength, error_left, delegate);
     }
 

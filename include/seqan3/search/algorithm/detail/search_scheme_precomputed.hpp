@@ -101,6 +101,16 @@ struct optimum_search_scheme<0, 1>
 };
 
 template <>
+struct optimum_search_scheme<1, 1>
+{
+    static constexpr search_scheme<2, 2> value
+    {{
+        {{1, 2}, {0, 1}, {0, 1}},
+        {{2, 1}, {0, 1}, {0, 1}}
+    }};
+};
+
+template <>
 struct optimum_search_scheme<0, 2>
 {
     static constexpr search_scheme<3, 4> value

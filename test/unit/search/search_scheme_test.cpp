@@ -204,7 +204,7 @@ inline void test_search(auto it,
                         auto const & search,
                         uint64_t const needle_length,
                         std::vector<uint8_t> const & error_distribution,
-                        time_t const seed,
+                        // time_t const seed,
                         auto const & blocklength, auto const & ordered_blocklength, uint64_t const start_pos)
 {
     using char_t = dna4;
@@ -269,6 +269,9 @@ inline void test_search(auto it,
     {
         std::cout << "yoooo\n";
     }*/
+
+    detail::search_params error_left{max_errors, max_errors, max_errors, max_errors};
+
     detail::search_scheme_single_search<false>(
         it, needle,     // data
         start_pos, start_pos + 1, // infix range
@@ -276,7 +279,7 @@ inline void test_search(auto it,
         0,                        // current block id
         true,                     // go to the right
         search, blocklength,      // search scheme information
-        detail::search_params{max_errors, max_errors, 0, 0},
+        error_left,
         delegate);
 
     for (uint64_t hit : hits)
@@ -288,7 +291,7 @@ inline void test_search(auto it,
 
     // Find all hits using trivial backtracking.
     hits.clear();
-    detail::_search_trivial<false>(it, needle, 0, detail::search_params{max_errors, max_errors, 0, 0}, delegate);
+    detail::_search_trivial<false>(it, needle, 0, error_left, delegate);
 
     for (uint64_t hit : hits)
     {
@@ -312,7 +315,7 @@ inline void test_search(auto it,
                     distributionOkay = false;
                 leftRange += ordered_blocklength[block];
             }
-            if (distributionOkay/* || std::is_same<TDistanceTag, EditDistance>::value*/)
+            if (distributionOkay || (error_left.insertion > 0 || error_left.deletion > 0))
                 expectedHitsTrivial.push_back(hit);
         }
     }
@@ -325,7 +328,7 @@ inline void test_search(auto it,
 
     if (expectedHitsSS != expectedHitsTrivial)
     {
-        debug_stream << "Seed: " << seed << '\n'
+        debug_stream //<< "Seed: " << seed << '\n'
                      << "Text: " << text << '\n'
                      << "Error_distribution: " << error_distribution << '\n'
                      << "Original: " << orig_needle << '\n'
@@ -341,10 +344,6 @@ template <typename search_scheme_t>
 inline void test_search_scheme(search_scheme_t const & search_scheme)
 {
     using index_t = bi_fm_index<dna4_vector>;
-
-    time_t seed = std::time(nullptr); // 1539636936
-    std::cout << "seed = " << seed << std::endl;
-    std::srand(seed);
 
     search_scheme_t ordered_search_scheme;
     std::vector<std::vector<std::vector<uint8_t> > > error_distributions(search_scheme.size());
@@ -385,7 +384,7 @@ inline void test_search_scheme(search_scheme_t const & search_scheme)
                 for (auto const & error_distribution : error_distributions[search_id])
                 {
                     //std::cout << "-----------------------------------\n";
-                    test_search(index.begin(), text, search_scheme[search_id], needle_length, error_distribution, seed, blocklength, ordered_blocklength, start_pos);
+                    test_search(index.begin(), text, search_scheme[search_id], needle_length, error_distribution, /*seed,*/ blocklength, ordered_blocklength, start_pos);
                 }
             }
         }
@@ -394,11 +393,20 @@ inline void test_search_scheme(search_scheme_t const & search_scheme)
 
 TEST(search_scheme_test, search_scheme_mismatches)
 {
-    for (uint64_t i = 0; i < 10; ++i)
+    time_t seed = std::time(nullptr);
+    std::srand(seed);
+    std::cout << "seed = " << seed << std::endl;
+
+    for (uint64_t i = 0; i < 1000; ++i)
     {
         test_search_scheme(detail::optimum_search_scheme<0, 0>::value);
         test_search_scheme(detail::optimum_search_scheme<0, 1>::value);
+        test_search_scheme(detail::optimum_search_scheme<1, 1>::value);
         test_search_scheme(detail::optimum_search_scheme<0, 2>::value);
         test_search_scheme(detail::optimum_search_scheme<0, 3>::value);
+        if (i > 0 && i % 20 == 0)
+            std::cout << std::endl;
+        std::cout << ".";
+        std::cout.flush();
     }
 }
