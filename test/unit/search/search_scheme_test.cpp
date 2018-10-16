@@ -195,25 +195,21 @@ TEST(search_scheme_test, error_distribution_disjoint_computed_search_schemes)
 
 
 
-
-
-
-
-inline void test_search(auto it,
-                        auto const & text,
-                        auto const & search,
-                        uint64_t const needle_length,
-                        std::vector<uint8_t> const & error_distribution,
-                        // time_t const seed,
-                        auto const & blocklength, auto const & ordered_blocklength, uint64_t const start_pos)
+inline void test_search_hamming(auto it,
+                                auto const & text,
+                                auto const & search,
+                                uint64_t const query_length,
+                                std::vector<uint8_t> const & error_distribution,
+                                // time_t const seed,
+                                auto const & blocklength, auto const & ordered_blocklength, uint64_t const start_pos)
 {
     using char_t = dna4;
 
-    uint64_t const pos = std::rand() % (text.size() - needle_length + 1);
-    std::vector<dna4> const orig_needle = text | ranges::view::slice(pos, pos + needle_length);
+    uint64_t const pos = std::rand() % (text.size() - query_length + 1);
+    std::vector<dna4> const orig_query = text | ranges::view::slice(pos, pos + query_length);
 
-    // Modify needle s.t. it has errors matching error_distribution.
-    auto needle = orig_needle;
+    // Modify query s.t. it has errors matching error_distribution.
+    auto query = orig_query;
     uint64_t cumulativeBlocklength = 0;
     for (uint8_t block = 0; block < search.blocks(); ++block)
     {
@@ -228,7 +224,7 @@ inline void test_search(auto it,
             exit(1);
         }
 
-        // choose random positions in needle that will be a mismatch/indel
+        // choose random positions in query that will be a mismatch/indel
         // repeat until all error positions are unique
         std::vector<uint8_t> error_positions(error_distribution[block]);
         do
@@ -239,7 +235,7 @@ inline void test_search(auto it,
             sort(error_positions.begin(), error_positions.end());
         } while (std::adjacent_find(error_positions.begin(), error_positions.end()) != error_positions.end());
 
-        // construct needle with chosen error positions
+        // construct query with chosen error positions
         for (unsigned error = 0; error < error_positions.size(); ++error)
         {
             unsigned pos = error_positions[error] + cumulativeBlocklength;
@@ -247,8 +243,8 @@ inline void test_search(auto it,
             do
             {
                 assign_rank(newChar, std::rand() % 4);
-            } while(needle[pos] == newChar);
-            needle[pos] = newChar;
+            } while(query[pos] == newChar);
+            query[pos] = newChar;
         }
         cumulativeBlocklength += single_block_length;
     }
@@ -265,15 +261,24 @@ inline void test_search(auto it,
     using namespace seqan3::literal;
 
     // Find all hits using search schemes.
-    /*if (text == "GCCCATTAAG"_dna4 && needle == "GCCCA"_dna4)
+    uint8_t const total        = max_errors;
+    uint8_t const substitution = std::rand() % (total + 1);
+    uint8_t const insertion    = 0;
+    uint8_t const deletion     = 0;
+
+    // std::cout << (unsigned)total << ", "
+    //           << (unsigned)substitution << ", "
+    //           << (unsigned)insertion << ", "
+    //           << (unsigned)deletion << std::endl;
+    detail::search_params error_left{total, substitution, insertion, deletion};
+
+    if (text == "TCAAGTTCAT"_dna4 && query == "GCGCGTACA"_dna4)
     {
         std::cout << "yoooo\n";
-    }*/
-
-    detail::search_params error_left{max_errors, max_errors, max_errors, max_errors};
+    }
 
     detail::search_scheme_single_search<false>(
-        it, needle,     // data
+        it, query,     // data
         start_pos, start_pos + 1, // infix range
         0,                        // errors spent
         0,                        // current block id
@@ -284,23 +289,25 @@ inline void test_search(auto it,
 
     for (uint64_t hit : hits)
     {
-        dna4_vector matched_seq = text | ranges::view::slice(hit, hit + needle_length);
-        if (matched_seq == orig_needle)
+        dna4_vector matched_seq = text | ranges::view::slice(hit, hit + query_length);
+        if (matched_seq == orig_query)
             expectedHitsSS.push_back(hit);
     }
 
     // Find all hits using trivial backtracking.
     hits.clear();
-    detail::_search_trivial<false>(it, needle, 0, error_left, delegate);
+    // std::cout << "min_error: " << std::accumulate(error_distribution.begin(), error_distribution.end(), 0) << '\n';
+    detail::_search_trivial<false>(it, query, 0, error_left, /*search.l.back()*/std::accumulate(error_distribution.begin(), error_distribution.end(), 0), delegate);
 
     for (uint64_t hit : hits)
     {
         // filter only correct error distributions
-        dna4_vector matched_seq = text | ranges::view::slice(hit, hit + needle_length);
-        if (orig_needle == matched_seq)
+        dna4_vector matched_seq = text | ranges::view::slice(hit, hit + query_length);
+        if (orig_query == matched_seq)
         {
             bool distributionOkay = true;
             uint64_t leftRange = 0, rightRange = 0;
+            uint8_t total_errors = 0;
             for (uint8_t block = 0; block < search.blocks(); ++block)
             {
                 rightRange += ordered_blocklength[block];
@@ -310,12 +317,14 @@ inline void test_search(auto it,
                     if (hit + i >= text.size())
                         ++errors;
                     else
-                        errors += needle[i] != text[hit + i];
+                        errors += query[i] != text[hit + i];
+                total_errors += errors;
+                //std::cout << (unsigned)total_errors << " > " << (unsigned)total << '\n';
                 if (errors != error_distribution[block])
                     distributionOkay = false;
                 leftRange += ordered_blocklength[block];
             }
-            if (distributionOkay || (error_left.insertion > 0 || error_left.deletion > 0))
+            if ((distributionOkay || (error_left.insertion > 0 || error_left.deletion > 0))/* && total_errors <= total*/)
                 expectedHitsTrivial.push_back(hit);
         }
     }
@@ -331,8 +340,8 @@ inline void test_search(auto it,
         debug_stream //<< "Seed: " << seed << '\n'
                      << "Text: " << text << '\n'
                      << "Error_distribution: " << error_distribution << '\n'
-                     << "Original: " << orig_needle << '\n'
-                     << "Modified: " << needle << '\n'
+                     << "Original: " << orig_query << '\n'
+                     << "Modified: " << query << '\n'
                      << "ExpectedHitsSS: " << expectedHitsSS << '\n'
                      << "ExpectedHitsTrivial: " << expectedHitsTrivial << '\n';
         print_search(search, blocklength);
@@ -341,7 +350,7 @@ inline void test_search(auto it,
 }
 
 template <typename search_scheme_t>
-inline void test_search_scheme(search_scheme_t const & search_scheme)
+inline void test_search_scheme_hamming(search_scheme_t const & search_scheme)
 {
     using index_t = bi_fm_index<dna4_vector>;
 
@@ -363,19 +372,12 @@ inline void test_search_scheme(search_scheme_t const & search_scheme)
     {
         std::vector<dna4> text;
         random_text(text, text_length);
-        //debug_stream << text << '\n';
         index_t index(text);
-        for (uint64_t needle_length = std::max<uint64_t>(5, search_scheme[0].blocks() * errors); needle_length < std::min<uint64_t>(16, text_length); ++needle_length)
+        for (uint64_t query_length = std::max<uint64_t>(5, search_scheme[0].blocks() * errors); query_length < std::min<uint64_t>(16, text_length); ++query_length)
         {
-            auto const block_info = search_scheme_block_info(search_scheme, needle_length);
+            auto const block_info = search_scheme_block_info(search_scheme, query_length);
             for (uint8_t search_id = 0; search_id < search_scheme.size(); ++search_id)
             {
-                /*using namespace seqan3::literal;
-                if (needle_length == 5 && search_id == 1 && text == "TCAGCCAAGCGGATCG"_dna4)
-                {
-                    debug_stream << needle_length << '\n';
-                    debug_stream << search_id << '\n';
-                }*/
                 auto const & [blocklength, start_pos] = block_info[search_id];
 
                 std::vector<uint64_t> ordered_blocklength;
@@ -383,8 +385,80 @@ inline void test_search_scheme(search_scheme_t const & search_scheme)
 
                 for (auto const & error_distribution : error_distributions[search_id])
                 {
-                    //std::cout << "-----------------------------------\n";
-                    test_search(index.begin(), text, search_scheme[search_id], needle_length, error_distribution, /*seed,*/ blocklength, ordered_blocklength, start_pos);
+                    test_search_hamming(index.begin(), text, search_scheme[search_id], query_length, error_distribution, /*seed,*/ blocklength, ordered_blocklength, start_pos);
+                }
+            }
+        }
+    }
+}
+
+
+
+template <typename search_scheme_t>
+inline void test_search_scheme_non_hamming(search_scheme_t const & search_scheme)
+{
+    using index_t = bi_fm_index<dna4_vector>;
+
+    uint8_t max_error = 0;
+    for (auto const & search : search_scheme)
+        max_error = std::max(max_error, search.u.back());
+
+    for (uint64_t text_length = 10; text_length < 10000; text_length *= 10)
+    {
+        std::vector<dna4> text;
+        random_text(text, text_length);
+
+        uint8_t const substitution = std::rand() % (max_error + 1);
+        uint8_t const insertion    = std::rand() % (max_error + 1);
+        uint8_t const deletion     = std::rand() % (max_error + 1);
+        detail::search_params error_left{max_error, substitution, insertion, deletion};
+
+        index_t index(text);
+        for (uint64_t iterations = 0; iterations < 100; ++iterations)
+        {
+            for (uint64_t query_length = std::max<uint64_t>(3, search_scheme[0].blocks() * max_error); query_length < std::min<uint64_t>(16, text_length); ++query_length)
+            {
+                std::vector<dna4> query;
+                random_text(query, query_length);
+
+                std::vector<uint64_t> hits, expectedHitsSS, expectedHitsTrivial;
+                auto delegate = [&hits](auto const & it)
+                {
+                    auto const & hits_tmp = it.locate();
+                    hits.insert(hits.end(), hits_tmp.begin(), hits_tmp.end());
+                };
+
+                // Find all hits using search schemes.
+                detail::search_search_scheme<false>(index, query, error_left, search_scheme, delegate);
+                expectedHitsSS.insert(expectedHitsSS.end(), hits.begin(), hits.end());
+                // for (uint64_t hit : hits)
+                // {
+                //     dna4_vector matched_seq = text | ranges::view::slice(hit, hit + query_length);
+                //     if (matched_seq == orig_query)
+                //         expectedHitsSS.push_back(hit);
+                // }
+
+                // Find all hits using simple backtracking.
+                hits.clear();
+                detail::search_trivial<false>(index, query, error_left, delegate);
+                expectedHitsTrivial.insert(expectedHitsTrivial.end(), hits.begin(), hits.end());
+
+                // eliminate duplicates
+                std::sort(expectedHitsSS.begin(), expectedHitsSS.end());
+                std::sort(expectedHitsTrivial.begin(), expectedHitsTrivial.end());
+                expectedHitsSS.erase(std::unique(expectedHitsSS.begin(), expectedHitsSS.end()), expectedHitsSS.end());
+                expectedHitsTrivial.erase(std::unique(expectedHitsTrivial.begin(), expectedHitsTrivial.end()), expectedHitsTrivial.end());
+
+                if (expectedHitsSS != expectedHitsTrivial)
+                {
+                    debug_stream //<< "Seed: " << seed << '\n'
+                                 << "Text: " << text << '\n'
+                                 << "Query: " << query << '\n'
+                                 << "Errors: " << max_error << '\n'
+                                 << "ExpectedHitsSS: " << expectedHitsSS << '\n'
+                                 << "ExpectedHitsTrivial: " << expectedHitsTrivial << '\n'
+                                 << max_error << ", " << substitution << ", " << insertion << ", " << deletion << '\n';
+                    exit(1);
                 }
             }
         }
@@ -399,11 +473,25 @@ TEST(search_scheme_test, search_scheme_mismatches)
 
     for (uint64_t i = 0; i < 1000; ++i)
     {
-        test_search_scheme(detail::optimum_search_scheme<0, 0>::value);
-        test_search_scheme(detail::optimum_search_scheme<0, 1>::value);
-        test_search_scheme(detail::optimum_search_scheme<1, 1>::value);
-        test_search_scheme(detail::optimum_search_scheme<0, 2>::value);
-        test_search_scheme(detail::optimum_search_scheme<0, 3>::value);
+        // test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 0>::value);
+        // test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 1>::value);
+        // test_search_scheme_non_hamming(detail::optimum_search_scheme<1, 1>::value);
+        // test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 2>::value);
+        // test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 3>::value);
+        // if (i > 0 && i % 20 == 0)
+        //     std::cout << std::endl;
+        // std::cout << ".";
+        // std::cout.flush();
+    }
+
+    std::cout << "................................................................................................\n";
+
+    for (uint64_t i = 0; i < 1000; ++i)
+    {
+        test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 0>::value);
+        test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 1>::value);
+        test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 2>::value);
+        test_search_scheme_non_hamming(detail::optimum_search_scheme<0, 3>::value);
         if (i > 0 && i % 20 == 0)
             std::cout << std::endl;
         std::cout << ".";

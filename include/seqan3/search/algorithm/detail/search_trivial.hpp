@@ -54,13 +54,17 @@ namespace seqan3::detail
 {
 
 template <bool abort_on_hit>
-auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, search_params error_left,
-                     auto && delegate)
+auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, search_params const error_left,
+                     int16_t const min_error_left, auto && delegate)
 {
+    //using namespace seqan3::literal;
+    //if (query == "TTTCCTGAGCCTGA"_dna4 && query_pos == 12)
+    //    std::cout << "YAP!\n";
+
     // Exact case
     if (query_pos == query.size() || error_left.total == 0)
     {
-        if (query_pos == query.size() || it.extend_right(ranges::view::drop_exactly(query, query_pos)))
+        if (query_pos == query.size() || it.extend_right(ranges::view::drop_exactly(query, query_pos)) && min_error_left <= 0)
         {
             delegate(it/*, error_left.total*/);
             if constexpr (abort_on_hit)
@@ -82,12 +86,12 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
             // do not allow deletion in the next step
             if constexpr (abort_on_hit)
             {
-                if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate))
+                if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, min_error_left - 1, delegate))
                     return true;
             }
             else
             {
-                _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate);
+                _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, min_error_left - 1, delegate);
             }
         }
 
@@ -105,12 +109,12 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
 
                     if constexpr (abort_on_hit)
                     {
-                        if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate))
+                        if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, min_error_left - delta, delegate))
                             return true;
                     }
                     else
                     {
-                        _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, delegate);
+                        _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left2, min_error_left - delta, delegate);
                     }
                 }
 
@@ -122,12 +126,12 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
                     {
                         if constexpr (abort_on_hit)
                         {
-                            if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate))
+                            if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, min_error_left, delegate))
                                 return true;
                         }
                         else
                         {
-                            _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate);
+                            _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, min_error_left, delegate);
                         }
                     }
 
@@ -140,12 +144,12 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
                         // do not allow deletion in the next step
                         if constexpr (abort_on_hit)
                         {
-                            if (_search_trivial<abort_on_hit>(it, query, query_pos, error_left2, delegate))
+                            if (_search_trivial<abort_on_hit>(it, query, query_pos, error_left2, min_error_left - 1, delegate))
                                 return true;
                         }
                         else
                         {
-                            _search_trivial<abort_on_hit>(it, query, query_pos, error_left2, delegate);
+                            _search_trivial<abort_on_hit>(it, query, query_pos, error_left2, min_error_left - 1, delegate);
                         }
                     }
                 }
@@ -159,12 +163,12 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
             {
                 if constexpr (abort_on_hit)
                 {
-                    if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate))
+                    if (_search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, min_error_left, delegate))
                         return true;
                 }
                 else
                 {
-                    _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, delegate);
+                    _search_trivial<abort_on_hit>(it, query, query_pos + 1, error_left, min_error_left, delegate);
                 }
             }
         }
@@ -172,10 +176,11 @@ auto _search_trivial(auto it, auto const & query, uint64_t const query_pos, sear
 }
 
 template <bool abort_on_hit, typename TIndex, typename TQuery, typename TDelegate>
-inline void search_trivial(TIndex const & index, TQuery const & query, search_params error_left, TDelegate && delegate)
+inline void search_trivial(TIndex const & index, TQuery const & query, search_params const error_left, TDelegate && delegate,
+                           int16_t const min_error_left = 0)
 {
     // <abort_on_hit>
-    _search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, delegate);
+    _search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, min_error_left, delegate);
 }
 
 }

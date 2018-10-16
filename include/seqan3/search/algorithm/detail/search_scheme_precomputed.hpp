@@ -81,12 +81,16 @@ using search_scheme_dyn = std::vector<search_dyn>;
 template <uint8_t min_errors, uint8_t max_errors>
 struct optimum_search_scheme;
 
+// TODO: sort searches in each search scheme from computationally easy to computationally expensive
+// when internally a search with abort_on_hit is conducted, we are more likely to be faster if we start
+// with the faster search
+
 template <>
 struct optimum_search_scheme<0, 0>
 {
-    static constexpr search_scheme<1, 3> value
+    static constexpr search_scheme<1, 1> value
     {{
-        {{2, 1, 3}, {0, 0, 0}, {0, 0, 0}}
+        {{1}, {0}, {0}}
     }};
 };
 

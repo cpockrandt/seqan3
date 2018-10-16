@@ -95,30 +95,51 @@ inline auto search_scheme_block_info(auto const & search_scheme, uint64_t const 
     return result;
 }
 
+// forward declaration
 template <bool abort_on_hit>
-inline void search_scheme_single_search_exact(auto it, auto & query, uint64_t const lb, uint64_t const rb,
-                                              uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
-                                              auto const & search, auto const & blocklength,
-                                              search_params const error_left, auto && delegate);
-
-template <bool abort_on_hit>
-inline void search_scheme_single_search(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+inline bool search_scheme_single_search(auto it, auto & query, uint64_t const lb, uint64_t const rb,
                                         uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
                                         auto const & search, auto const & blocklength,
                                         search_params const error_left, auto && delegate);
 
-// template <bool abort_on_hit>
-// inline void search_scheme_single_search_children(auto it, auto & query, uint64_t const lb, uint64_t const rb,
-//                                                  uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
-//                                                  uint8_t const min_errors_left_in_block,
-//                                                  auto const & search, auto const & blocklength,
-//                                                  search_params const error_left, auto && delegate);
+template <bool abort_on_hit>
+inline bool search_scheme_single_search_exact(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+                                              uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
+                                              auto const & search, auto const & blocklength,
+                                              search_params const error_left, auto && delegate)
+{
+    uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
+    bool const go_right2 = (block_id < search.blocks() - 1) && search.pi[block_id + 1] > search.pi[block_id];
+    // NOTE: from sven:
+    // bool const goToRight2 = (blockIndex < s.pi.size() - 1) ? s.pi[blockIndex + 1] > s.pi[blockIndex] : s.pi[blockIndex] > s.pi[blockIndex - 1];
+
+    if (go_right)
+    {
+        uint64_t const infix_lb = rb - 1; // inclusive
+        uint64_t const infix_rb = lb + blocklength[block_id] - 1; // exclusive
+
+        if (!it.extend_right(query | ranges::view::slice(infix_lb, infix_rb + 1)))
+            return false;
+
+        if (search_scheme_single_search<abort_on_hit>(it, query, lb, infix_rb + 2, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate) && abort_on_hit)
+            return true;
+    }
+    else
+    {
+        uint64_t const infix_lb = rb - blocklength[block_id] - 1; // inclusive
+        uint64_t const infix_rb = lb - 1; // inclusive
+
+        if (!it.extend_left(query | ranges::view::slice(infix_lb, infix_rb + 1)))
+            return false;
+
+        if (search_scheme_single_search<abort_on_hit>(it, query, infix_lb, rb, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate) && abort_on_hit)
+            return true;
+    }
+    return false;
+}
 
 template <bool abort_on_hit>
-inline void search_search_scheme(auto index, auto & query, search_params errors_left, auto const & search_scheme, auto && delegate);
-
-template <bool abort_on_hit>
-inline void search_scheme_single_search_deletion(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+inline bool search_scheme_single_search_deletion(auto it, auto & query, uint64_t const lb, uint64_t const rb,
                                                  uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
                                                  auto const & search, auto const & blocklength,
                                                  search_params const error_left, auto && delegate)
@@ -131,23 +152,26 @@ inline void search_scheme_single_search_deletion(auto it, auto & query, uint64_t
         uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
         bool const go_right2 = search.pi[block_id2] > search.pi[block_id2 - 1];
 
-        search_scheme_single_search<abort_on_hit>(it, query, lb, rb, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate);
+        if (search_scheme_single_search<abort_on_hit>(it, query, lb, rb, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate) && abort_on_hit)
+            return true;
     }
 
-    if (max_errors_left_in_block > 0 && error_left.total > 0 && error_left.deletion > 0 && ((go_right && it.extend_right()) || (!go_right && it.extend_left())))
+    if (!(search.pi[block_id] == 1 && !go_right) && max_errors_left_in_block > 0 && error_left.total > 0 && error_left.deletion > 0 && ((go_right && it.extend_right()) || (!go_right && it.extend_left())))
     {
         search_params error_left2{error_left};
         error_left2.total--;
         error_left2.deletion--;
         do
         {
-            search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
+            if (search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate) && abort_on_hit)
+                return true;
         } while ((go_right && it.cycle_back()) || (!go_right && it.cycle_front()));
     }
+    return false;
 }
 
 template <bool abort_on_hit>
-inline void search_scheme_single_search_children(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+inline bool search_scheme_single_search_children(auto it, auto & query, uint64_t const lb, uint64_t const rb,
                                                  uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
                                                  uint8_t const min_errors_left_in_block,
                                                  auto const & search, auto const & blocklength,
@@ -164,10 +188,6 @@ inline void search_scheme_single_search_children(auto it, auto & query, uint64_t
         {
             bool const delta = it.last_char() != query[(go_right ? rb : lb) - 1];
 
-            search_params error_left2{error_left};
-            error_left2.total -= delta;
-            error_left2.substitution -= delta;
-
             // NOTE: move that outside the if / do-while struct
             // NOTE: check that as well before doing non-edit-distance steps inside the loop
             if (!(/*error_left.insertion > 0 || */error_left.deletion > 0) && // TODO: remove insertion case
@@ -178,12 +198,17 @@ inline void search_scheme_single_search_children(auto it, auto & query, uint64_t
 
             if (!delta || error_left.substitution > 0)
             {
+                search_params error_left2{error_left};
+                error_left2.total -= delta;
+                error_left2.substitution -= delta;
+
                 if (rb - lb == blocklength[block_id])
                 {
                     // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
                     if (/*error_left.insertion > 0 || */error_left.deletion > 0) // TODO: remove insertion case
                     {
-                        search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate);
+                        if (search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate) && abort_on_hit)
+                            return true;
                     }
                     else
                     {
@@ -191,87 +216,61 @@ inline void search_scheme_single_search_children(auto it, auto & query, uint64_t
                         uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
                         bool const go_right2 = search.pi[block_id2] > search.pi[block_id2 - 1];
 
-                        search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id2, go_right2, search, blocklength, error_left2, delegate);
+                        if (search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id2, go_right2, search, blocklength, error_left2, delegate) && abort_on_hit)
+                            return true;
                     }
                 }
                 else
                 {
-                    search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate);
+                    if (search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + delta, block_id, go_right, search, blocklength, error_left2, delegate) && abort_on_hit)
+                        return true;
                 }
             }
 
             // Deletion
+            // TODO: check in search_scheme_single_search when calling delegate that the last error was not a deletion
+            // (no matter whether its the first or last block???)
             if (error_left.deletion > 0) // TODO: is this correct?
             {
                 search_params error_left3{error_left};
                 error_left3.total--;
                 error_left3.deletion--;
-                search_scheme_single_search_deletion<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left3, delegate);
+                search_scheme_single_search<abort_on_hit>(it, query, lb, rb, errors_spent + 1, block_id, go_right, search, blocklength, error_left3, delegate); // NOTE: previous call to _deletion. wrong transfer from SeqAn2
             }
 
         } while ((go_right && it.cycle_back()) || (!go_right && it.cycle_front()));
     }
-
+    return false;
 }
 
 template <bool abort_on_hit>
-inline void search_scheme_single_search_exact(auto it, auto & query, uint64_t const lb, uint64_t const rb,
-                                              uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
-                                              auto const & search, auto const & blocklength,
-                                              search_params const error_left, auto && delegate)
-{
-    uint8_t const block_id2 = std::min(block_id + 1, static_cast<uint8_t>(search.blocks()) - 1);
-    bool const go_right2 = (block_id < search.blocks() - 1) && search.pi[block_id + 1] > search.pi[block_id];
-    // NOTE: from sven:
-    // bool const goToRight2 = (blockIndex < s.pi.size() - 1) ? s.pi[blockIndex + 1] > s.pi[blockIndex] : s.pi[blockIndex] > s.pi[blockIndex - 1];
-
-    if (go_right)
-    {
-        uint64_t const infix_lb = rb - 1; // inclusive
-        uint64_t const infix_rb = lb + blocklength[block_id] - 1; // exclusive
-
-        //debug_stream << "exact search: " << (query | ranges::view::slice(infix_lb, infix_rb + 1)) << '\n';
-        if (!it.extend_right(query | ranges::view::slice(infix_lb, infix_rb + 1)))
-            return;
-
-        search_scheme_single_search<abort_on_hit>(it, query, lb, infix_rb + 2, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate);
-    }
-    else
-    {
-        uint64_t const infix_lb = rb - blocklength[block_id] - 1; // inclusive
-        uint64_t const infix_rb = lb - 1; // inclusive
-
-        if (!it.extend_left(query | ranges::view::slice(infix_lb, infix_rb + 1)))
-            return;
-
-        search_scheme_single_search<abort_on_hit>(it, query, infix_lb, rb, errors_spent, block_id2, go_right2, search, blocklength, error_left, delegate);
-    }
-}
-
-template <bool abort_on_hit>
-inline void search_scheme_single_search(auto it, auto & query, uint64_t const lb, uint64_t const rb,
+inline bool search_scheme_single_search(auto it, auto & query, uint64_t const lb, uint64_t const rb,
                                         uint8_t const errors_spent, uint8_t const block_id, bool const go_right,
                                         auto const & search, auto const & blocklength,
                                         search_params const error_left, auto && delegate)
 {
-
+    /*using namespace seqan3::literal;
+    if (query == "AGC"_dna4)
+    {
+        std::cout << "OOO\n";
+    }*/
     uint8_t const max_errors_left_in_block = search.u[block_id] - errors_spent;
     uint8_t const min_errors_left_in_block = std::max(search.l[block_id] - errors_spent, 0); // NOTE: changed
-
-    //debug_stream << "search: " << query << " (" << lb << ", " << rb << ")\n";
 
     // Done.
     if (min_errors_left_in_block == 0 && lb == 0 && rb == query.size() + 1)
     {
         delegate(it);
+        return true;
     }
     // Exact search in current block.
-    else if (max_errors_left_in_block == 0 && rb - lb - 1 != blocklength[block_id])
+    else if (max_errors_left_in_block == 0 && rb - lb - 1 != blocklength[block_id] || (error_left.total == 0 && min_errors_left_in_block == 0))
     {
-        search_scheme_single_search_exact<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, search, blocklength, error_left, delegate);
+        if (search_scheme_single_search_exact<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, search, blocklength, error_left, delegate) && abort_on_hit);
+            return true;
     }
     // Approximate search in current block.
-    else if (error_left.total > 0) // (blocklength[block_id] - (rb - lb - (lb != rb)) >= min_errors_left_in_block)
+    else if (error_left.total > 0)// (blocklength[block_id] - (rb - lb - (lb != rb)) >= min_errors_left_in_block)
     {
         // Insertion
         if (error_left.insertion > 0)
@@ -287,21 +286,23 @@ inline void search_scheme_single_search(auto it, auto & query, uint64_t const lb
                 // leave the possibility for one or multiple deletions! therefore, don't change direction, etc!
                 // TODO: can the first "if statement" lead to a duplicate path in backtracking? should we enforce a
                 // going down edges before calling this function?
-                search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
+                if (search_scheme_single_search_deletion<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate) && abort_on_hit)
+                    return true;
             }
             else
             {
-                search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate);
+                if (search_scheme_single_search<abort_on_hit>(it, query, lb2, rb2, errors_spent + 1, block_id, go_right, search, blocklength, error_left2, delegate) && abort_on_hit)
+                    return true;
             }
         }
-        search_scheme_single_search_children<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, min_errors_left_in_block, search, blocklength, error_left, delegate);
+        if (search_scheme_single_search_children<abort_on_hit>(it, query, lb, rb, errors_spent, block_id, go_right, min_errors_left_in_block, search, blocklength, error_left, delegate) && abort_on_hit)
+            return true;
     }
-
-    // return false;
+    return false;
 }
 
 template <bool abort_on_hit>
-inline void search_search_scheme(auto const & index, auto & query, search_params errors_left, auto const & search_scheme,
+inline void search_search_scheme(auto const & index, auto & query, search_params const errors_left, auto const & search_scheme,
                                  auto && delegate)
 {
     auto const block_info = search_scheme_block_info(search_scheme, query.size());
@@ -311,8 +312,7 @@ inline void search_search_scheme(auto const & index, auto & query, search_params
         auto const & search = search_scheme[search_id];
         auto const & [blocklength, start_pos] = block_info[search_id];
 
-        bool const hit = false;
-        search_scheme_single_search<abort_on_hit>(
+        bool const hit = search_scheme_single_search<abort_on_hit>(
                             index.begin(), query,     // data
                             start_pos, start_pos + 1, // infix range
                             0,                        // errors spent
