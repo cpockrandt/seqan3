@@ -33,8 +33,7 @@
 // ============================================================================
 
 /*!\file
- * \brief Provides a simple function that sorts a vector and returns it to allow the use of EXCEPT_EQ() for
- *        vectors of arbitrary order while keeping the detailed output for test failures.
+ * \brief Provides helper functions for testing the search modules.
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
  */
 
@@ -43,6 +42,8 @@
 #include <algorithm>
 #include <vector>
 
+#include <seqan3/alphabet/all.hpp>
+
 namespace seqan3
 {
 
@@ -50,7 +51,7 @@ template <typename T>
 std::vector<T> sort(std::vector<T> v)
 {
     std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end()); // TODO: remove once duplicates are filtered
+    v.erase(std::unique(v.begin(), v.end()), v.end());
     return v;
 }
 
@@ -59,6 +60,15 @@ std::vector<std::vector<T>> sort(std::vector<std::vector<T>> v)
 {
     std::for_each(v.begin(), v.end(), [](auto & hits) { sort(hits); } );
     return v;
+}
+
+void random_text(std::vector<dna4> & text, uint64_t const length)
+{
+    uint8_t alphabet_size{4};
+
+    text.resize(length);
+    for (uint64_t i = 0; i < length; ++i)
+        assign_rank(text[i], std::rand() % alphabet_size);
 }
 
 } // namespace std
