@@ -34,24 +34,29 @@
 
 /*!\file
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief
+ * \brief Provides the public interface for search algorithms.
  */
 
 #pragma once
 
 #include <seqan3/core/metafunction/pre.hpp>
 #include <seqan3/search/algorithm/detail/search_trivial.hpp>
+#include <seqan3/search/algorithm/detail/search_scheme_algorithm.hpp>
 #include <seqan3/search/fm_index/concept.hpp>
 
 namespace seqan3::detail
 {
 
-//!\brief \todo Docs missing
+/*!\brief Search a single query in an index.
+ * \param[in] index String index to be searched.
+ * \param[in] queries A single query, must model std::ranges::RandomAccessRange.
+ * \param[in] cfg A configuration object specifying the search parameters.
+ */
 template <typename index_t>
 inline auto search_single(index_t const & index, auto & query, auto const & cfg)
 {
     // retrieve error numbers / rates
-    detail::search_params max_error{0, 0, 0, 0};
+    detail::search_param max_error{0, 0, 0, 0};
     auto & [total, subs, ins, del] = max_error;
     if constexpr (contains<search_cfg::id::max_error>(cfg))
     {
@@ -59,21 +64,21 @@ inline auto search_single(index_t const & index, auto & query, auto const & cfg)
     }
     else if constexpr (contains<search_cfg::id::max_error_rate>(cfg))
     {
-        // NOTE: Casting doubles rounds towards zero (i.e. floor for positive numbers). Thus given a rate of 10% and a
-        // read length of 101 the maxiumum number of errors is correctly casted from 10.1 errors to 10
+        // NOTE: Casting doubles rounds towards zero (i.e. floor for positive numbers). Thus, given a rate of
+        // 10% and a read length of 101 the max number of errors is correctly casted from 10.1 errors to 10
         std::tie(total, subs, ins, del) = std::apply([& query](auto && ... args)
             {
                 return std::tuple{(args * query.size())...};
             }, get<search_cfg::id::max_error_rate>(cfg));
     }
 
-    // TODO: if total not set: max_error.total = max_error.deletion + max_error.substitution + max_error.insertion;
+    // TODO: if total not set: max_error.total = max_error.deletion + max_error.substitution
+    //                                         + max_error.insertion;
     // TODO: throw exception when any error number or rate is higher than the total error number/rate
-    //         throw std::invalid_argument("The total number of errors is set to zero while there is a positive number "
-    //                                     "of errors for a specific error type.");
+    // throw std::invalid_argument("The total number of errors is set to zero while there is a positive number"
+    //                             " of errors for a specific error type.");
 
     // construct internal delegate for collecting hits for later filtering (if necessary)
-    // TODO: pass "it" by reference or value?
     std::vector<typename index_t::iterator_type> internal_hits;
     auto internal_delegate = [&internal_hits, &max_error](auto const & it)
     {
@@ -84,31 +89,31 @@ inline auto search_single(index_t const & index, auto & query, auto const & cfg)
     auto const & selected_mode = seqan3::get<search_cfg::id::mode>(cfg);
     if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_best>)
     {
-        detail::search_params max_error2{max_error};
+        detail::search_param max_error2{max_error};
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<true>(index, query, max_error2, internal_delegate);
+            detail::search_algo<true>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
     }
     else if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, detail::search_mode_all_best>)
     {
-        detail::search_params max_error2{max_error};
+        detail::search_param max_error2{max_error};
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<false>(index, query, max_error2, internal_delegate);
+            detail::search_algo<false>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
     }
     else if constexpr (std::Same<remove_cvref_t<decltype(selected_mode)>, search_cfg::strata>)
     {
-        detail::search_params max_error2{max_error};
+        detail::search_param max_error2{max_error};
         max_error2.total = 0;
         while (internal_hits.empty() && max_error2.total <= max_error.total)
         {
-            detail::search_trivial<true>(index, query, max_error2, internal_delegate);
+            detail::search_algo<true>(index, query, max_error2, internal_delegate);
             max_error2.total++;
         }
         if (!internal_hits.empty())
@@ -116,12 +121,12 @@ inline auto search_single(index_t const & index, auto & query, auto const & cfg)
             internal_hits.clear(); // don't clear when using Optimum Search Schemes with lower error bounds
             uint8_t const s = selected_mode;
             max_error2.total += s - 1;
-            detail::search_trivial<false>(index, query, max_error2, internal_delegate);
+            detail::search_algo<false>(index, query, max_error2, internal_delegate);
         }
     }
     else // detail::search_mode_all
     {
-        detail::search_trivial<false>(index, query, max_error, internal_delegate);
+        detail::search_algo<false>(index, query, max_error, internal_delegate);
     }
 
     // TODO: filter hits and only do it when necessary (depending on error types)
@@ -159,14 +164,19 @@ inline auto search_single(index_t const & index, auto & query, auto const & cfg)
     }
 }
 
-//!\brief \todo Docs missing
+/*!\brief Search a query or a range of queries in an index.
+ * \param[in] index String index to be searched.
+ * \param[in] queries A single query or a (forward) range of queries. A query must model
+                      std::ranges::RandomAccessRange.
+ * \param[in] cfg A configuration object specifying the search parameters.
+ */
 template <typename index_t, typename queries_t>
 inline auto search_all(index_t const & index, queries_t & queries, auto const & cfg)
 {
-    // return type: for each query: a vector of text_position (or iterators) and number of errors spent
-    // delegate params: text_position (or iterator), number of errors spent and query id. (TODO: or return vector)
-    //                  we will withhold all hits of one query anyway to filter duplicates. more efficient to call
-    //                  delegate once with one vector instead of calling delegate for each hit separately at once.
+    // return type: for each query: a vector of text_positions (or iterators)
+    // delegate params: text_position (or iterator). we will withhold all hits of one query anyway to filter
+    //                  duplicates. more efficient to call delegate once with one vector instead of calling
+    //                  delegate for each hit separately at once.
     auto const & output = seqan3::get<search_cfg::id::output>(cfg);
     using hit_t = std::conditional_t<std::Same<remove_cvref_t<decltype(output)>, detail::search_output_index_iterator>,
                                      typename index_t::iterator_type,

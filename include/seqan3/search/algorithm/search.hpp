@@ -34,7 +34,7 @@
 
 /*!\file
  * \author Christopher Pockrandt <christopher.pockrandt AT fu-berlin.de>
- * \brief
+ * \brief Provides the public interface for search algorithms.
  */
 
 #pragma once
@@ -46,12 +46,27 @@
 namespace seqan3
 {
 
-//!\brief \todo Document!
+/*!\brief Search a query or a range of queries in an index.
+ * \param[in] index String index to be searched.
+ * \param[in] queries A single query or a (forward) range of queries. A query must model
+                      std::ranges::RandomAccessRange.
+ * \param[in] cfg A configuration object specifying the search parameters (e.g. number of errors, error types,
+ *                output format, etc.).
+ *
+ * ### Complexity
+ *
+ * Exponential in the numbers of errors.
+ *
+ * ### Exceptions
+ *
+ * No-throw guarantee.
+ */
 template <typename index_t, typename queries_t, typename config_t>
 //!\cond
     requires
         (std::ranges::RandomAccessRange<queries_t> ||
-            (std::ranges::ForwardRange<queries_t> && std::ranges::RandomAccessRange<value_type_t<queries_t>>)) &&
+            (std::ranges::ForwardRange<queries_t> &&
+             std::ranges::RandomAccessRange<value_type_t<queries_t>>)) &&
         detail::is_algorithm_configuration_v<remove_cvref_t<config_t>>
 //!\endcond
 inline auto search(index_t const & index, queries_t && queries, config_t const & cfg)
@@ -60,24 +75,25 @@ inline auto search(index_t const & index, queries_t && queries, config_t const &
     {
         auto & [total, subs, ins, del] = get<search_cfg::id::max_error>(cfg);
         if (subs > total)
-            throw std::invalid_argument("The substitution error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Substitution error threshold is higher than the total error "
+                                        "threshold.");
         if (ins > total)
-            throw std::invalid_argument("The insertion error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Insertion error threshold is higher than the total error threshold.");
         if (del > total)
-            throw std::invalid_argument("The deletion error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Deletion error threshold is higher than the total error threshold.");
     }
     else if constexpr (contains<search_cfg::id::max_error_rate>(cfg))
     {
         auto & [total, subs, ins, del] = get<search_cfg::id::max_error_rate>(cfg);
         if (subs > total)
-            throw std::invalid_argument("The substitution error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Substitution error threshold is higher than the total error "
+                                        "threshold.");
         if (ins > total)
-            throw std::invalid_argument("The insertion error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Insertion error threshold is higher than the total error threshold.");
         if (del > total)
-            throw std::invalid_argument("The deletion error threshold is higher than the total error threshold.");
+            throw std::invalid_argument("Deletion error threshold is higher than the total error threshold.");
     }
 
-    // TODO: replace enumeration of all code paths to set all required configuration objects
     if constexpr (contains<search_cfg::id::mode>(cfg))
     {
         if constexpr (contains<search_cfg::id::output>(cfg))
@@ -95,9 +111,21 @@ inline auto search(index_t const & index, queries_t && queries, config_t const &
     }
 }
 
-// DOC: insertion/deletion are with resp. to the query. i.e. an insertion is the insertion of a base into the query
-// that does not occur in the text at the position
-//!\brief \todo Document!
+/*!\brief Search a query or a range of queries in an index.
+ * \param[in] index String index to be searched.
+ * \param[in] queries A single query or a (forward) range of queries. A query must model
+                      std::ranges::RandomAccessRange.
+ * \param[in] cfg A configuration object specifying the search parameters (e.g. number of errors, error types,
+ *                output format, etc.).
+ *
+ * ### Complexity
+ *
+ * Exponential in the numbers of errors.
+ *
+ * ### Exceptions
+ *
+ * No-throw guarantee.
+ */
 template <typename index_t, typename queries_t>
 //!\cond
     requires std::ranges::RandomAccessRange<queries_t> ||
@@ -105,8 +133,10 @@ template <typename index_t, typename queries_t>
 //!\endcond
 inline auto search(index_t const & index, queries_t && queries)
 {
-    detail::configuration const default_cfg = search_cfg::max_error(search_cfg::total{0}, search_cfg::substitution{0},
-                                                                    search_cfg::insertion{0}, search_cfg::deletion{0})
+    detail::configuration const default_cfg = search_cfg::max_error(search_cfg::total{0},
+                                                                    search_cfg::substitution{0},
+                                                                    search_cfg::insertion{0},
+                                                                    search_cfg::deletion{0})
                                             | search_cfg::output(search_cfg::text_position)
                                             | search_cfg::mode(search_cfg::all);
     return search(index, queries, default_cfg);
