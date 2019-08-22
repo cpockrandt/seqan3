@@ -83,6 +83,14 @@ using sdsl_wt_index_type =
                  sdsl::isa_sampling<>,
                  sdsl::plain_byte_alphabet>;
 
+using sdsl_epr_index_type =
+ sdsl::csa_wt<sdsl::wt_pc_epr<11>,
+              16,
+              10000000,
+              sdsl::sa_order_sa_sampling<>,
+              sdsl::isa_sampling<>,
+              sdsl::plain_byte_alphabet>;
+
 /*!\brief The default FM Index Configuration.
  * \attention The default might be changed in a future release. If you rely on a stable API and on-disk-format,
  *            please hard-code your sdsl_index_type to a concrete type.
